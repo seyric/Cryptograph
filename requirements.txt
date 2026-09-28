@@ -1,0 +1,35 @@
+# CANARY TRAP — pinned Python dependencies
+#
+# Every entry is pinned to an exact version that was verified installable and
+# passing the full test suite on Python 3.14 / win_amd64.
+# Licences, sources and what each library is used for: see THIRD_PARTY.md.
+#
+# Create the environment with:
+#   py -3 -m venv .venv
+#   .venv\Scripts\python.exe -m pip install -r requirements.txt
+
+# --- post-quantum cryptography (NIST FIPS 203 / FIPS 204) ---
+kyber-py==1.2.0          # ML-KEM-768  (MIT OR Apache-2.0)
+dilithium-py==1.4.0      # ML-DSA-65   (MIT OR Apache-2.0)
+
+# --- symmetric crypto (AES-256-GCM) ---
+cryptography==50.0.1     # Apache-2.0 OR BSD-3-Clause
+
+# --- PDF engine (text extraction, content-stream rewrite, variant assembly) ---
+PyMuPDF==1.28.2          # AGPL-3.0 or commercial - read THIRD_PARTY.md
+
+# --- services ---
+fastapi==0.141.1         # MIT
+uvicorn==0.54.0          # BSD-3-Clause
+pydantic==2.13.5         # MIT
+
+# --- test / tooling ---
+pytest==9.1.1            # MIT
+
+# Transitive dependencies (installed automatically, not pinned here):
+#   starlette 1.7.0, anyio 4.15.1, h11 0.16.0, idna 3.20, click 8.5.0,
+#   colorama 0.4.6, typing-extensions 4.16.0, annotated-types 0.8.0,
+#   pydantic-core 2.46.5, typing-inspection 0.4.4, cffi 2.1.1, pycparser 3.0,
+#   Pygments 2.21.0, iniconfig 2.3.0, pluggy 1.6.0, packaging 26.3.
+# Reproduce the full environment with:
+#   .venv\Scripts\python.exe -m pip freeze > requirements.lock.txt
