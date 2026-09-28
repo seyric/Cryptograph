@@ -17,6 +17,8 @@ from typing import List, Dict, Any, Optional, Tuple
 from seal.merkle import MerkleTree
 from seal.pqc_adapter import canonical_json, b64_encode, b64_decode
 from .entry import compute_entry_hash
+from .proofs import build_inclusion_proof, verify_chain
+from .schema import SCHEMA_SQL
 
 
 class Ledger:
@@ -38,59 +40,7 @@ class Ledger:
 
     def _init_db(self):
         with self._get_conn() as conn:
-            conn.executescript("""
-            CREATE TABLE IF NOT EXISTS blocks (
-                height INTEGER PRIMARY KEY,
-                prev_hash BLOB NOT NULL,
-                merkle_root BLOB NOT NULL,
-                timestamp INTEGER NOT NULL,
-                proposer_id TEXT NOT NULL,
-                block_hash BLOB NOT NULL UNIQUE
-            );
-
-            CREATE TABLE IF NOT EXISTS entries (
-                entry_hash BLOB PRIMARY KEY,
-                block_height INTEGER NOT NULL REFERENCES blocks(height),
-                entry_type TEXT NOT NULL,
-                payload TEXT NOT NULL,
-                signature BLOB NOT NULL,
-                signer_id TEXT NOT NULL
-            );
-
-            CREATE TABLE IF NOT EXISTS block_signatures (
-                block_height INTEGER NOT NULL REFERENCES blocks(height),
-                validator_id TEXT NOT NULL,
-                signature BLOB NOT NULL,
-                PRIMARY KEY (block_height, validator_id)
-            );
-
-            CREATE TABLE IF NOT EXISTS enrolled_identities (
-                recipient_id TEXT PRIMARY KEY,
-                ml_kem_public_key BLOB NOT NULL,
-                ml_dsa_public_key BLOB NOT NULL,
-                enrolled_at INTEGER NOT NULL,
-                is_revoked INTEGER DEFAULT 0
-            );
-
-            CREATE TABLE IF NOT EXISTS manifests (
-                doc_id TEXT PRIMARY KEY,
-                container_hash BLOB NOT NULL,
-                authorized_recipients TEXT NOT NULL,
-                total_blocks INTEGER NOT NULL,
-                expiry INTEGER NOT NULL,
-                quota INTEGER NOT NULL,
-                manifest_signature BLOB NOT NULL
-            );
-
-            CREATE TABLE IF NOT EXISTS key_shares (
-                doc_id TEXT NOT NULL,
-                block_idx INTEGER NOT NULL,
-                variant INTEGER NOT NULL,
-                share_index INTEGER NOT NULL,
-                encrypted_share BLOB NOT NULL,
-                PRIMARY KEY (doc_id, block_idx, variant, share_index)
-            );
-            """)
+            conn.executescript(SCHEMA_SQL)
 
     def _ensure_genesis(self):
         """Commit Genesis Block (Height 0) if ledger is newly created."""
@@ -347,9 +297,7 @@ class Ledger:
             cur.execute("SELECT entry_hash FROM entries WHERE block_height = ? ORDER BY rowid ASC;", (height,))
             all_entries = [r["entry_hash"] for r in cur.fetchall()]
 
-            tree = MerkleTree(all_entries)
-            target_idx = all_entries.index(entry_hash)
-            proof = tree.get_proof(target_idx)
+            proof = build_inclusion_proof(all_entries, entry_hash)
 
             # Get block header and signatures
             cur.execute("SELECT * FROM blocks WHERE height = ?;", (height,))
@@ -371,44 +319,16 @@ class Ledger:
             cur = conn.cursor()
             cur.execute("SELECT * FROM blocks ORDER BY height ASC;")
             blocks = cur.fetchall()
-
-            expected_prev_hash = b"\x00" * 32
-            for b in blocks:
-                h = b["height"]
-                if h == 0:
-                    expected_prev_hash = b["block_hash"]
+            entries_by_height: Dict[int, List[Any]] = {}
+            for block in blocks:
+                height = block["height"]
+                if height == 0:
                     continue
+                cur.execute(
+                    "SELECT entry_hash, entry_type, payload, signature FROM entries "
+                    "WHERE block_height = ? ORDER BY rowid ASC;",
+                    (height,),
+                )
+                entries_by_height[height] = cur.fetchall()
 
-                if b["prev_hash"] != expected_prev_hash:
-                    return False, f"Broken prev_hash chain at height {h}"
-
-                # Verify each entry payload and signature against its entry_hash
-                cur.execute("SELECT entry_hash, entry_type, payload, signature FROM entries WHERE block_height = ? ORDER BY rowid ASC;", (h,))
-                entry_rows = cur.fetchall()
-                entry_hashes = []
-                for er in entry_rows:
-                    expected_eh = compute_entry_hash(er["entry_type"], er["payload"], er["signature"])
-                    if expected_eh != er["entry_hash"]:
-                        return False, f"Entry record tampered at height {h}: payload hash mismatch"
-                    entry_hashes.append(er["entry_hash"])
-
-                # Reconstruct Merkle tree from entries
-                tree = MerkleTree(entry_hashes)
-                if tree.root != b["merkle_root"]:
-                    return False, f"Merkle root mismatch at height {h}"
-
-                # Recompute block hash
-                header = {
-                    "height": h,
-                    "prev_hash": b["prev_hash"].hex(),
-                    "merkle_root": b["merkle_root"].hex(),
-                    "timestamp": b["timestamp"],
-                    "proposer_id": b["proposer_id"]
-                }
-                computed_h = hashlib.sha3_256(canonical_json(header)).digest()
-                if computed_h != b["block_hash"]:
-                    return False, f"Block hash corrupt at height {h}"
-
-                expected_prev_hash = b["block_hash"]
-
-            return True, None
+        return verify_chain(blocks, entries_by_height)

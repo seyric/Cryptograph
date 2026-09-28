@@ -35,6 +35,7 @@ from bridge.session import RecipientCryptoSession
 from hound.attribution import ForensicAccuser
 from hound.evidence import EvidenceBundleBuilder
 from hound.verify import verify_evidence_bundle
+from .fixtures import write_demo_directive
 
 # Terminal Styling
 C_RESET = "\033[0m"
@@ -170,53 +171,7 @@ def run_full_demo():
     TOTAL_BLOCKS = 24
     print_step(3, f"Sender Distributes 3-Page Document ({TOTAL_BLOCKS} Blocks) with Pre-Encrypted Variants & Shamir SSS")
     source_pdf_path = os.path.join(demo_dir, "source_directive.pdf")
-    doc = fitz.open()
-
-    pages_content = [
-        # Page 1
-        [
-            "NATIONAL CYBER DEFENCE DIRECTIVE 2026 - CONFIDENTIAL",
-            "EXECUTIVE SUMMARY: Post-Quantum Migration Framework for Infrastructure.",
-            "1.1: All designated government entities must implement post-quantum protocols.",
-            "1.2: Traditional asymmetric cryptosystems like RSA and ECDSA are deprecated.",
-            "1.3: Immediate implementation of NIST FIPS 203 ML-KEM-768 key encapsulation.",
-            "1.4: Universal adoption of NIST FIPS 204 ML-DSA-65 digital signatures.",
-            "1.5: Inter-agency distribution must be mediated by Byzantine quorums.",
-            "1.6: Dynamic cryptographic watermarking shall prevent untraceable leaks."
-        ],
-        # Page 2
-        [
-            "SECTION 2: MANDATORY ATTRIBUTION AND PROVENANCE PROTOCOLS",
-            "2.1: The 'No Log, No Key' invariant must be strictly enforced on hosts.",
-            "2.2: Decryption variant keys remain split under threshold Shamir sharing.",
-            "2.3: Plaintext representations shall never be generated unmarked.",
-            "2.4: Each recipient session receives a unique micro-typographic variant.",
-            "2.5: The variant assignment is evaluated via HMAC-SHA3-256 PRF from commit.",
-            "2.6: The resultant word-spacing shifts are imperceptible to readers.",
-            "2.7: Any attempt to bypass logging yields unusable ciphertexts."
-        ],
-        # Page 3
-        [
-            "SECTION 3: LEGAL ADMISSIBILITY UNDER SECTION 63 BSA 2023",
-            "3.1: All evidence bundles generated satisfy Section 63 of BSA 2023.",
-            "3.2: The immutable ledger guarantees complete chronological custody.",
-            "3.3: Merkle audit proofs establish mathematical binding to block headers.",
-            "3.4: In the event of unauthorized leaks, the extractor recovers codeword.",
-            "3.5: Statistical correlation against access sessions isolates the leaker.",
-            "3.6: Splicing attacks result in definitive attribution of all colluders.",
-            "3.7: Official compliance certification signed by National Cyber Centre."
-        ]
-    ]
-
-    for p_idx, lines in enumerate(pages_content):
-        page = doc.new_page(width=595, height=842)
-        y = 80
-        for line in lines:
-            fontsize = 13 if y == 80 else 10
-            page.insert_text((60, y), line, fontsize=fontsize)
-            y += 85
-    doc.save(source_pdf_path)
-    doc.close()
+    write_demo_directive(source_pdf_path)
 
     sender_vk, sender_sk = MLDSA65.keygen()
     doc_id = "DEFENCE_DIRECTIVE_2026"
