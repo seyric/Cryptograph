@@ -16,7 +16,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from seal.pqc_adapter import MLKEM768, MLDSA65, b64_encode, b64_decode
 from seal.sharing import ShamirSecretSharing
-from dye.assembler import VariantGenerator
+from dye.embedder_adapter import TextLayerAdapter
 from dye.text_layer import TextBlock
 
 
@@ -210,5 +210,5 @@ class RecipientCryptoSession:
             recovered_codeword.append(chosen_variant)
 
         # 3. Stitch blocks into PDF
-        pdf_bytes = VariantGenerator.assemble_pdf(assembled_blocks, doc_meta, recovered_codeword)
+        pdf_bytes = TextLayerAdapter().embed(assembled_blocks, doc_meta, recovered_codeword)
         return pdf_bytes

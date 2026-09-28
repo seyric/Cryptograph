@@ -135,7 +135,13 @@ def test_forensic_accusation_and_offline_verification(forensics_env):
     assert result.top_candidate.recipient_id == "ALICE"
     assert result.top_candidate.match_count == 6
     assert result.top_candidate.match_percentage == 100.0
-    assert result.separation_margin_bits > 0
+    # The accused matching 6/6 is the deterministic property being tested.
+    # A strictly positive separation margin is NOT guaranteed: each session's
+    # codeword is 6 independent random bits, so an innocent collides with the
+    # accused 1 time in 2**6 (~1.6% of runs) and the margin is then 0. Asserting
+    # > 0 here made this test flaky by construction; the identity assertion
+    # above is what actually carries the guarantee. See docs/rebrand-report.md.
+    assert result.separation_margin_bits >= 0
     assert result.false_accusation_probability < 0.10  # For M=6; for M=420 blocks it is < 1e-20
 
     # Build Evidence Bundle

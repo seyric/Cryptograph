@@ -34,18 +34,27 @@ that was applied. Referenced by `docs/rebrand-report.md`.
 
 | Package | Responsibility |
 |---|---|
-| `core/` | Post-quantum wrappers, Shamir sharing, Merkle tree, container build |
-| `vault/` | Hash-chained ledger, entries, Merkle inclusion proofs |
-| `mark/` | Watermark embed and extract: segmentation, variant streams, codeword |
-| `tracer/` | Leak attribution, evidence bundle, offline verification |
-| `gate/` | Decrypt-request validation, quorum consensus, key release |
-| `api/` | Recipient daemon: local keys, request signing, document assembly |
-| `console/` | Web UIs (`audit/`, `viewer/`) |
-| `cli/` | Command-line tools |
-| `gauntlet/` | Benchmarks, demo runner, attack harness |
-| `docs/` | Architecture, protocol, threat model, benchmarks, naming, rebrand report |
+| `seal/` | Post-quantum adapter, Shamir sharing, Merkle tree, container build |
+| `warden/` | Decrypt-request validation, quorum consensus, key release, validator API |
+| `chronicle/` | Hash-chained ledger: entry hashing, schema, Merkle proofs, chain verification |
+| `dye/` | Watermark layers: text layer today (segmentation, variants, codeword, extraction) |
+| `hound/` | Leak attribution, evidence bundle, offline verification |
+| `bridge/` | Recipient daemon: local keys, request signing, document assembly |
+| `deck/` | Web UIs (`deck/audit/`, `deck/viewer/`) |
+| `gauntlet/` | Benchmarks, demo runner, fixtures, attack harness |
+| `ct/` | Command-line tools |
+| `docs/` | Architecture, protocol, threat model, benchmarks, naming, rename map, roadmap, rebrand report |
 | `third_party/` | Third-party material, licence texts, patch area |
 | `tests/` | Consolidated pytest suite |
+
+Adapter modules - one seam per external library:
+
+| Adapter | Wraps | Replacing it touches |
+|---|---|---|
+| `seal/pqc_adapter.py` | `kyber-py` / `dilithium-py` | nothing else |
+| `bridge/pdf_adapter.py` | PyMuPDF (`fitz`) | `dye/`, `seal/container.py`, `bridge/session.py` |
+| `dye/embedder_adapter.py` | the text watermark channel | `hound/`, `bridge/` |
+| `chronicle/schema.py` | SQLite DDL | `chronicle/ledger.py` |
 
 Packages are imported as **top-level modules** (`from seal.pqc_adapter import ...`), which
 matches the flat layout above. `pytest.ini` puts the repository root on

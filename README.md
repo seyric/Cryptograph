@@ -31,8 +31,8 @@ CANARY TRAP does this by never letting an unmarked plaintext exist:
 4. **The copy is the evidence.** The codeword is derived from the committed
    ledger entry, so the recovered watermark points back at one specific
    committed decryption session.
-5. **Prove it offline.** `tracer/` builds a self-contained evidence bundle and
-   `tracer/verify.py` re-checks every signature and Merkle proof with zero
+5. **Prove it offline.** `hound/` builds a self-contained evidence bundle and
+   `hound/verify.py` re-checks every signature and Merkle proof with zero
    network access.
 
 ---
@@ -40,21 +40,25 @@ CANARY TRAP does this by never letting an unmarked plaintext exist:
 ## Repository layout
 
 ```
-core/          keys, post-quantum primitives, Shamir sharing, Merkle tree, container build
-vault/         hash-chained ledger, Merkle inclusion proofs, entries and checkpoints
-mark/          watermark embed and extract (block segmentation, variant streams, codeword)
-tracer/        leak analysis, attribution scoring, evidence bundle, offline verifier
-gate/          decrypt-request validation, quorum consensus, threshold key release
-api/           recipient-facing daemon: local keys, request signing, document assembly
-console/       web UIs: console/audit (cluster + forensics), console/viewer (recipient)
-cli/           command-line tools
-gauntlet/         benchmark suite, end-to-end demo runner, attack harness
-docs/          architecture, protocol, threat model, benchmarks, naming, rebrand report
-third_party/   third-party material, licence texts, reserved patch area
-tests/         full pytest suite
+seal/       encryption, key wrapping, key management  (pqc_adapter, sharing, merkle, container)
+warden/     signed requests, policy, key release       (policy, custody, consensus, service)
+chronicle/  hash-chained ledger, Merkle proofs         (entry, schema, proofs, ledger)
+dye/        watermark layers: text today               (text_layer, assembler, extractor, codeword)
+hound/      attribution, exoneration, evidence bundles  (attribution, evidence, verify)
+bridge/     recipient-facing FastAPI service            (session, service, pdf_adapter seam)
+deck/       web UIs: deck/audit (cluster + forensics), deck/viewer (recipient)
+gauntlet/   attack harness, benchmarks, demo fixtures
+ct/         command-line tools
+docs/       architecture, protocol, threat model, benchmarks, naming, rename map, roadmap
+third_party/ third-party material, licence texts, reserved patch area
+tests/      full pytest suite
 ```
 
-Module boundaries and the reasoning behind them: `docs/architecture.md`.
+Each package exposes at most one seam over an external library -
+`seal/pqc_adapter.py` for post-quantum, `bridge/pdf_adapter.py` for PDF - so a
+provider can be replaced without touching the rest of the system. Module
+boundaries and the reasoning behind them: `docs/architecture.md`. Full
+old-name to new-name record: `docs/RENAME_MAP.md`.
 
 ---
 
@@ -91,7 +95,7 @@ py -3 -m venv .venv
 
 Then: `http://127.0.0.1:8001/console/` for the audit console and
 `http://127.0.0.1:5001/` for the recipient portal (both need `npm run build` in
-`console/audit` and `console/viewer`).
+`deck/audit` and `deck/viewer`).
 
 ### Command line
 
@@ -117,10 +121,10 @@ Then: `http://127.0.0.1:8001/console/` for the audit console and
 `p = 2^256 + 297` is the smallest prime greater than `2^256`, so every 32-byte
 AES key maps into the field with no rejection sampling and no wrap-around.
 
-Providers behind `core/pqc.py` are `kyber-py` and `dilithium-py` (MIT OR
+Providers behind `seal/pqc_adapter.py` are `kyber-py` and `dilithium-py` (MIT OR
 Apache-2.0). Both are explicitly educational libraries with no side-channel
-hardening — `core/pqc.py` is the single swap point for a hardened provider. See
-`THIRD_PARTY.md` §2.1.
+hardening — `seal/pqc_adapter.py` is the single swap point for a hardened
+provider. See `THIRD_PARTY.md` §2.1.
 
 ---
 
@@ -148,12 +152,12 @@ This is a hackathon prototype, not a production system. The following are known
 limitations of the **current implementation** and are documented, not hidden.
 They are listed so nobody is surprised under questioning.
 
-1. **The quorum threshold is not enforced.** `gate/consensus.py` collects peer
+1. **The quorum threshold is not enforced.** `warden/consensus.py` collects peer
    votes but a block is still committed when fewer than three signatures are
    gathered (the missing-vote branch is a no-op), so a single reachable node can
    commit. The 4-node cluster and its fault tolerance are real; the enforcement
    of `≥3-of-4` is not yet implemented.
-2. **Manifest signatures are stored but not verified.** `gate/main.py` accepts a
+2. **Manifest signatures are stored but not verified.** `warden/service.py` accepts a
    `MANIFEST` without checking the sender's ML-DSA-65 signature, unlike
    `ENROLL` and `DECRYPT_REQUEST`, which are verified.
 3. **Quorum certificates are not yet uniformly defined.** The proposer signs a
@@ -169,7 +173,7 @@ They are listed so nobody is surprised under questioning.
    one that survives re-rendering, and it is the weaker of the two.
 6. **The viewer relies on the browser's PDF renderer**, not a bundled PDF
    renderer, so the recipient must use a browser with native PDF support.
-7. **If a recipient's public key is missing locally, `cli/sender.py` generates a
+7. **If a recipient's public key is missing locally, `ct/sender.py` generates a
    throwaway key** so the demo can continue; that recipient then cannot decrypt.
 8. **The watermark is typographic.** Robustness to print-and-scan or to document
    re-typesetting is not implemented; error-correcting codes (Reed-Solomon) are

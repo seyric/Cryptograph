@@ -10,7 +10,7 @@ import hashlib
 from dataclasses import dataclass
 from typing import List, Dict, Any, Optional
 
-from dye.extractor import WatermarkExtractor
+from dye.embedder_adapter import TextLayerAdapter
 from dye.codeword import generate_codeword_bits
 from chronicle.ledger import Ledger
 
@@ -72,10 +72,8 @@ class ForensicAccuser:
         leaked_hash = hashlib.sha3_256(file_bytes).hexdigest()
 
         # 2. Extract codeword from leaked document
-        recovered_cw, confidences = WatermarkExtractor.extract_from_pdf(
-            file_bytes,
-            total_expected_blocks=total_blocks,
-            lines_per_block=lines_per_block
+        recovered_cw, confidences = TextLayerAdapter(lines_per_block=lines_per_block).extract(
+            file_bytes, total_blocks=total_blocks
         )
 
         # 3. Query all DECRYPT_REQUEST sessions for this document from the ledger

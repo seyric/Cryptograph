@@ -18,7 +18,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from seal.pqc_adapter import MLKEM768, MLDSA65, b64_encode
 from seal.sharing import ShamirSecretSharing
-from dye.text_layer import PDFSegmenter
+from dye.embedder_adapter import TextLayerAdapter
 
 
 CT_MAGIC = b"CANARY TRAP\x01"
@@ -55,7 +55,7 @@ class ContainerBuilder:
             (container_bytes, signed_manifest_dict, node_shares_by_share_index)
         """
         # 1. Segment PDF
-        blocks, doc_meta = PDFSegmenter.segment_pdf(pdf_path, lines_per_block=lines_per_block)
+        blocks, doc_meta = TextLayerAdapter(lines_per_block=lines_per_block).segment(pdf_path)
         total_blocks = len(blocks)
         if total_blocks == 0:
             raise ValueError("Document contains no text blocks to segment")
