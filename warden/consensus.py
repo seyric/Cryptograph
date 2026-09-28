@@ -11,7 +11,7 @@ Consensus Rules:
 import json
 import time
 import urllib.request
-from typing import List, Dict, Any, Tuple, Optional
+from typing import List, Dict, Any, Tuple
 
 from seal.pqc_adapter import MLDSA65, canonical_json, b64_encode, b64_decode
 from chronicle.ledger import Ledger

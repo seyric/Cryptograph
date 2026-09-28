@@ -10,7 +10,6 @@ Runs locally on recipient workstation (Port 5001):
 """
 
 import os
-import io
 import json
 import urllib.request
 from typing import Dict, Any, Optional

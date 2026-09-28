@@ -10,21 +10,15 @@ Executes rigorous benchmarks:
 """
 
 import os
-import sys
 import time
 import math
 import json
 import tempfile
 import fitz
 
-from seal.pqc_adapter import MLKEM768, MLDSA65, b64_encode, b64_decode, canonical_json
+from seal.pqc_adapter import MLKEM768, MLDSA65, b64_encode, b64_decode
 from seal.sharing import ShamirSecretSharing
 from seal.merkle import MerkleTree, verify_merkle_proof
-from seal.container import ContainerBuilder
-from bridge.session import RecipientCryptoSession
-from chronicle.ledger import Ledger
-from warden.policy import PolicyEngine
-from warden.custody import KeyCustodyManager
 from dye.text_layer import PDFSegmenter
 from dye.assembler import VariantGenerator
 

@@ -12,10 +12,8 @@ import subprocess
 import urllib.request
 import urllib.error
 import json
-import shutil
-import pytest
 
-from seal.pqc_adapter import MLDSA65, b64_encode, b64_decode, canonical_json
+from seal.pqc_adapter import MLDSA65, b64_encode, b64_decode
 from bridge.session import RecipientCryptoSession
 
 

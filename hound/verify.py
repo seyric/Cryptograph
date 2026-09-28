@@ -10,11 +10,11 @@ Designed for courtrooms, forensic investigators, and independent auditors:
 
 import sys
 import json
-import hashlib
 from typing import Dict, Any, Tuple, List
 
-from seal.pqc_adapter import MLDSA65, canonical_json, b64_decode
-from seal.merkle import verify_merkle_proof, hash_leaf
+from seal.pqc_adapter import MLDSA65, b64_decode
+from seal.merkle import verify_merkle_proof
+from chronicle.entry import compute_entry_hash
 
 
 def verify_evidence_bundle(bundle_data: Dict[str, Any]) -> Tuple[bool, List[str]]:
@@ -53,14 +53,9 @@ def verify_evidence_bundle(bundle_data: Dict[str, Any]) -> Tuple[bool, List[str]
         ]
     log.append("[PASS] Step 1: Recipient ML-DSA-65 digital signature verified (Non-repudiation confirmed).")
 
-    # 3. Verify Session Entry Hash
-    payload_str = canonical_json(req_payload).decode("utf-8")
-    hasher = hashlib.sha3_256()
-    hasher.update(b"\x00")
-    hasher.update(b"DECRYPT_REQUEST")
-    hasher.update(payload_str.encode("utf-8"))
-    hasher.update(recipient_sig)
-    computed_entry_hash = hasher.digest().hex()
+    # 3. Verify Session Entry Hash (definition owned by chronicle.entry)
+    entry_bytes = compute_entry_hash("DECRYPT_REQUEST", req_payload, recipient_sig)
+    computed_entry_hash = entry_bytes.hex()
 
     if computed_entry_hash != prov["session_entry_hash"]:
         return False, [
@@ -74,7 +69,6 @@ def verify_evidence_bundle(bundle_data: Dict[str, Any]) -> Tuple[bool, List[str]
         for p in proof["merkle_inclusion_proof"]
     ]
     expected_root = bytes.fromhex(proof["merkle_root"])
-    entry_bytes = hasher.digest()  # Leaf bytes
 
     merkle_valid = verify_merkle_proof(entry_bytes, merkle_proof_raw, expected_root)
     if not merkle_valid:

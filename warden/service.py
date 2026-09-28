@@ -9,14 +9,13 @@ Autonomous post-quantum Byzantine validator node providing:
 """
 
 import os
-import json
 import time
 from typing import Dict, Any, Optional
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from seal.pqc_adapter import MLDSA65, MLKEM768, b64_encode, b64_decode, canonical_json
+from seal.pqc_adapter import MLDSA65, b64_encode, b64_decode, canonical_json
 from chronicle.ledger import Ledger
 from .policy import PolicyEngine
 from .custody import KeyCustodyManager

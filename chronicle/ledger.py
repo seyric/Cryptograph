@@ -14,8 +14,9 @@ import hashlib
 import time
 from typing import List, Dict, Any, Optional, Tuple
 
-from seal.merkle import MerkleTree, hash_leaf
+from seal.merkle import MerkleTree
 from seal.pqc_adapter import canonical_json, b64_encode, b64_decode
+from .entry import compute_entry_hash
 
 
 class Ledger:
@@ -175,16 +176,9 @@ class Ledger:
                 signer_id = entry["signer_id"]
                 entry_type = entry["entry_type"]
 
-                # Entry hash: SHA3-256(0x00 || entry_type || payload_str || sig_bytes)
-                hasher = hashlib.sha3_256()
-                hasher.update(b"\x00")
-                hasher.update(entry_type.encode("utf-8"))
-                hasher.update(payload_str.encode("utf-8"))
-                hasher.update(sig_bytes)
-                entry_hash = hasher.digest()
-
-                leaf_bytes = hasher.digest()
-                leaf_bytes_list.append(leaf_bytes)
+                # Entry hash: see chronicle.entry for the single definition.
+                entry_hash = compute_entry_hash(entry_type, payload_str, sig_bytes)
+                leaf_bytes_list.append(entry_hash)
 
                 entry_records.append((
                     entry_hash, new_height, entry_type, payload_str, sig_bytes, signer_id
@@ -393,12 +387,7 @@ class Ledger:
                 entry_rows = cur.fetchall()
                 entry_hashes = []
                 for er in entry_rows:
-                    hasher = hashlib.sha3_256()
-                    hasher.update(b"\x00")
-                    hasher.update(er["entry_type"].encode("utf-8"))
-                    hasher.update(er["payload"].encode("utf-8"))
-                    hasher.update(er["signature"])
-                    expected_eh = hasher.digest()
+                    expected_eh = compute_entry_hash(er["entry_type"], er["payload"], er["signature"])
                     if expected_eh != er["entry_hash"]:
                         return False, f"Entry record tampered at height {h}: payload hash mismatch"
                     entry_hashes.append(er["entry_hash"])

@@ -8,10 +8,10 @@ Enforces "Log Before Key":
 """
 
 import os
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-from seal.pqc_adapter import MLKEM768, b64_encode, b64_decode
+from seal.pqc_adapter import MLKEM768, b64_encode
 from dye.codeword import generate_codeword_bits
 from chronicle.ledger import Ledger
 

@@ -16,11 +16,10 @@ Validates the complete "No log, no key" lifecycle in code:
 """
 
 import os
-import shutil
 import fitz
 import pytest
 
-from seal.pqc_adapter import MLKEM768, MLDSA65, b64_decode, b64_encode
+from seal.pqc_adapter import MLKEM768, MLDSA65, b64_decode
 from chronicle.ledger import Ledger
 from warden.policy import PolicyEngine
 from warden.custody import KeyCustodyManager

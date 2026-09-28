@@ -12,8 +12,6 @@ Proves:
 """
 
 import sys
-import json
-from seal.pqc_adapter import b64_decode
 from bridge.session import RecipientCryptoSession
 
 

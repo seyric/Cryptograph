@@ -17,12 +17,11 @@ import sys
 import time
 import shutil
 import argparse
-import random
-from typing import List, Dict, Any
+from typing import List, Dict
 
 import fitz  # PyMuPDF
 
-from seal.pqc_adapter import MLDSA65, MLKEM768, b64_encode, b64_decode, canonical_json
+from seal.pqc_adapter import MLDSA65, MLKEM768, b64_decode, canonical_json
 from seal.container import ContainerBuilder
 from bridge.session import RecipientCryptoSession
 from chronicle.ledger import Ledger

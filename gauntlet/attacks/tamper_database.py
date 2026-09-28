@@ -13,7 +13,6 @@ Demonstrates that altering even a single character in the SQLite database immedi
 import os
 import sys
 import sqlite3
-import json
 
 from chronicle.ledger import Ledger
 

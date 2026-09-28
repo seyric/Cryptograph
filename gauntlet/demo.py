@@ -26,14 +26,12 @@ import fitz
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(line_buffering=True)
 
-from seal.pqc_adapter import MLKEM768, MLDSA65, b64_encode, b64_decode, canonical_json
+from seal.pqc_adapter import MLKEM768, MLDSA65, b64_decode, canonical_json
 from chronicle.ledger import Ledger
 from warden.policy import PolicyEngine
 from warden.custody import KeyCustodyManager
 from seal.container import ContainerBuilder
 from bridge.session import RecipientCryptoSession
-from dye.extractor import WatermarkExtractor
-from dye.codeword import generate_codeword_bits
 from hound.attribution import ForensicAccuser
 from hound.evidence import EvidenceBundleBuilder
 from hound.verify import verify_evidence_bundle

@@ -11,13 +11,12 @@ Transforms a source PDF into a secure .ct container:
 
 import os
 import json
-import struct
 import hashlib
 import time
 from typing import List, Dict, Any, Tuple
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-from seal.pqc_adapter import MLKEM768, MLDSA65, b64_encode, canonical_json
+from seal.pqc_adapter import MLKEM768, MLDSA65, b64_encode
 from seal.sharing import ShamirSecretSharing
 from dye.text_layer import PDFSegmenter
 

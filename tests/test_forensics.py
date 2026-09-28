@@ -10,11 +10,10 @@ Tests:
 
 import os
 import copy
-import json
 import pytest
 import fitz
 
-from seal.pqc_adapter import MLDSA65, MLKEM768, b64_decode, b64_encode
+from seal.pqc_adapter import MLDSA65, b64_decode, b64_encode
 from chronicle.ledger import Ledger
 from warden.policy import PolicyEngine
 from warden.custody import KeyCustodyManager

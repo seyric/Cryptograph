@@ -5,12 +5,11 @@ Usage:
 """
 
 import os
-import sys
 import json
 import argparse
 import urllib.request
 
-from seal.pqc_adapter import MLDSA65, MLKEM768, b64_encode, b64_decode
+from seal.pqc_adapter import MLDSA65, MLKEM768, b64_encode
 from seal.container import ContainerBuilder
 
 

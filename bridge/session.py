@@ -14,7 +14,7 @@ import time
 from typing import Dict, Any, List, Tuple
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-from seal.pqc_adapter import MLKEM768, MLDSA65, b64_encode, b64_decode, canonical_json
+from seal.pqc_adapter import MLKEM768, MLDSA65, b64_encode, b64_decode
 from seal.sharing import ShamirSecretSharing
 from dye.assembler import VariantGenerator
 from dye.text_layer import TextBlock

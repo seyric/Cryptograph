@@ -8,7 +8,7 @@ to the responsible recipient with mathematical false-accusation bounds.
 import math
 import hashlib
 from dataclasses import dataclass
-from typing import List, Dict, Any, Tuple, Optional
+from typing import List, Dict, Any, Optional
 
 from dye.extractor import WatermarkExtractor
 from dye.codeword import generate_codeword_bits
