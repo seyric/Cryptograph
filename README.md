@@ -1,6 +1,6 @@
 # CANARY TRAP
 
-> **Every copy is different. Every leak has a name.**
+> **Why dont we make it simple?**
 
 Post-quantum copy-attribution and decryption provenance for multi-recipient
 document distribution. Target problem: Smart India Hackathon 2026, **SIH26237**
@@ -48,7 +48,7 @@ gate/          decrypt-request validation, quorum consensus, threshold key relea
 api/           recipient-facing daemon: local keys, request signing, document assembly
 console/       web UIs: console/audit (cluster + forensics), console/viewer (recipient)
 cli/           command-line tools
-bench/         benchmark suite, end-to-end demo runner, attack harness
+gauntlet/         benchmark suite, end-to-end demo runner, attack harness
 docs/          architecture, protocol, threat model, benchmarks, naming, rebrand report
 third_party/   third-party material, licence texts, reserved patch area
 tests/         full pytest suite
@@ -83,10 +83,10 @@ py -3 -m venv .venv
 
 ```powershell
 # validator / quorum node  (one process per node; ports 8001-8004)
-.venv\Scripts\python.exe -m uvicorn gate.main:app --host 127.0.0.1 --port 8001
+.venv\Scripts\python.exe -m uvicorn warden.service:app --host 127.0.0.1 --port 8001
 
 # recipient daemon (holds recipient keys, mounts the viewer)
-.venv\Scripts\python.exe -m uvicorn api.main:app --host 127.0.0.1 --port 5001
+.venv\Scripts\python.exe -m uvicorn bridge.service:app --host 127.0.0.1 --port 5001
 ```
 
 Then: `http://127.0.0.1:8001/console/` for the audit console and
@@ -96,23 +96,23 @@ Then: `http://127.0.0.1:8001/console/` for the audit console and
 ### Command line
 
 ```powershell
-.venv\Scripts\python.exe -m cli.sender distribute --pdf doc.pdf --doc-id DOC_001 --recipients ALICE,BOB
-.venv\Scripts\python.exe -m tracer.verify EVIDENCE_BUNDLE.json
+.venv\Scripts\python.exe -m ct.sender distribute --pdf doc.pdf --doc-id DOC_001 --recipients ALICE,BOB
+.venv\Scripts\python.exe -m hound.verify EVIDENCE_BUNDLE.json
 ```
 
 ---
 
 ## Cryptographic primitives
 
-| Function | Primitive | Standard | Sizes |
-|---|---|---|---|
-| Key encapsulation | ML-KEM-768 | NIST FIPS 203 | ek 1184 B, ct 1088 B, secret 32 B |
-| Digital signatures | ML-DSA-65 | NIST FIPS 204 | vk 1952 B, signature 3309 B |
-| Symmetric encryption | AES-256-GCM | NIST SP 800-38D | key 32 B, nonce 12 B, tag 16 B |
-| Secret sharing | Shamir over `F_p`, `p = 2^256 + 297` | — | `(t=3, n=4)`, 33-byte share values |
-| Hashing | SHA3-256 | NIST FIPS 202 | 32 B |
-| Merkle log | binary tree, domain separated `0x00` leaf / `0x01` node | RFC 9162 style | `O(log n)` inclusion proof |
-| Canonical serialization | key-sorted JSON, no whitespace | RFC 8785 style | — |
+| Function                | Primitive                                               | Standard        | Sizes                              |
+| ----------------------- | ------------------------------------------------------- | --------------- | ---------------------------------- |
+| Key encapsulation       | ML-KEM-768                                              | NIST FIPS 203   | ek 1184 B, ct 1088 B, secret 32 B  |
+| Digital signatures      | ML-DSA-65                                               | NIST FIPS 204   | vk 1952 B, signature 3309 B        |
+| Symmetric encryption    | AES-256-GCM                                             | NIST SP 800-38D | key 32 B, nonce 12 B, tag 16 B     |
+| Secret sharing          | Shamir over `F_p`, `p = 2^256 + 297`                    | —               | `(t=3, n=4)`, 33-byte share values |
+| Hashing                 | SHA3-256                                                | NIST FIPS 202   | 32 B                               |
+| Merkle log              | binary tree, domain separated `0x00` leaf / `0x01` node | RFC 9162 style  | `O(log n)` inclusion proof         |
+| Canonical serialization | key-sorted JSON, no whitespace                          | RFC 8785 style  | —                                  |
 
 `p = 2^256 + 297` is the smallest prime greater than `2^256`, so every 32-byte
 AES key maps into the field with no rejection sampling and no wrap-around.
@@ -133,7 +133,7 @@ hardening — `core/pqc.py` is the single swap point for a hardened provider. Se
 Evidence bundles are verified with zero network access:
 
 ```powershell
-.venv\Scripts\python.exe -m tracer.verify path\to\EVIDENCE_BUNDLE.json
+.venv\Scripts\python.exe -m hound.verify path\to\EVIDENCE_BUNDLE.json
 ```
 
 Checks performed, in order: recipient ML-DSA-65 signature (non-repudiation),
@@ -185,4 +185,3 @@ Remediation order and scope are tracked in `docs/architecture.md` §7.
 - Every third-party component, version, licence and purpose: `THIRD_PARTY.md`.
 - How this tree was derived from the earlier workspace, with file-level evidence:
   `docs/rebrand-report.md`.
-

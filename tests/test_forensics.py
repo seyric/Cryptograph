@@ -14,15 +14,15 @@ import json
 import pytest
 import fitz
 
-from core.pqc import MLDSA65, MLKEM768, b64_decode, b64_encode
-from vault.ledger import Ledger
-from gate.policy import PolicyEngine
-from gate.key_custody import KeyCustodyManager
-from core.build_container import ContainerBuilder
-from api.client_crypto import RecipientCryptoSession
-from tracer.accuse import ForensicAccuser
-from tracer.evidence_bundle import EvidenceBundleBuilder
-from tracer.verify import verify_evidence_bundle
+from seal.pqc_adapter import MLDSA65, MLKEM768, b64_decode, b64_encode
+from chronicle.ledger import Ledger
+from warden.policy import PolicyEngine
+from warden.custody import KeyCustodyManager
+from seal.container import ContainerBuilder
+from bridge.session import RecipientCryptoSession
+from hound.attribution import ForensicAccuser
+from hound.evidence import EvidenceBundleBuilder
+from hound.verify import verify_evidence_bundle
 
 
 @pytest.fixture

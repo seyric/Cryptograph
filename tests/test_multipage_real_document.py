@@ -14,15 +14,15 @@ import shutil
 import fitz
 import pytest
 
-from core.pqc import MLKEM768, MLDSA65, b64_decode, b64_encode
-from vault.ledger import Ledger
-from gate.policy import PolicyEngine
-from gate.key_custody import KeyCustodyManager
-from core.build_container import ContainerBuilder
-from api.client_crypto import RecipientCryptoSession
-from mark.extractor import WatermarkExtractor
-from mark.codeword import generate_codeword_bits
-from tracer.accuse import ForensicAccuser
+from seal.pqc_adapter import MLKEM768, MLDSA65, b64_decode, b64_encode
+from chronicle.ledger import Ledger
+from warden.policy import PolicyEngine
+from warden.custody import KeyCustodyManager
+from seal.container import ContainerBuilder
+from bridge.session import RecipientCryptoSession
+from dye.extractor import WatermarkExtractor
+from dye.codeword import generate_codeword_bits
+from hound.attribution import ForensicAccuser
 
 
 def create_realistic_multipage_pdf(filepath: str) -> int:

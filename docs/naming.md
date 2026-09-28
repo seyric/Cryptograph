@@ -42,12 +42,12 @@ that was applied. Referenced by `docs/rebrand-report.md`.
 | `api/` | Recipient daemon: local keys, request signing, document assembly |
 | `console/` | Web UIs (`audit/`, `viewer/`) |
 | `cli/` | Command-line tools |
-| `bench/` | Benchmarks, demo runner, attack harness |
+| `gauntlet/` | Benchmarks, demo runner, attack harness |
 | `docs/` | Architecture, protocol, threat model, benchmarks, naming, rebrand report |
 | `third_party/` | Third-party material, licence texts, patch area |
 | `tests/` | Consolidated pytest suite |
 
-Packages are imported as **top-level modules** (`from core.pqc import ...`), which
+Packages are imported as **top-level modules** (`from seal.pqc_adapter import ...`), which
 matches the flat layout above. `pytest.ini` puts the repository root on
 `sys.path`, so no `PYTHONPATH` juggling is needed.
 
@@ -81,19 +81,19 @@ Filenames that carried no brand token were deliberately **not** renamed
 | `.sigil` (extension) | `.ct` | 17 |
 | `demo_data` | `bench_data` | 17 |
 | `validator_node.ledger` | `vault.ledger` | 12 |
-| `validator_node.main` | `gate.main` | 1 |
-| `validator_node.policy` | `gate.policy` | 6 |
-| `validator_node.key_custody` | `gate.key_custody` | 7 |
+| `validator_node.main` | `warden.service` | 1 |
+| `validator_node.policy` | `warden.policy` | 6 |
+| `validator_node.key_custody` | `warden.custody` | 7 |
 | `validator_node` (residual) | `gate` | 2 |
 | `watermark_engine` | `mark` | 19 |
 | `forensic_lab` | `tracer` | 9 |
 | `offline_verifier` | `tracer` | 4 |
 | `recipient_client.daemon` | `api` | 8 |
-| `sender_tool.build_container` | `core.build_container` | 6 |
-| `sender_tool.cli` | `cli.sender` | 1 |
+| `sender_tool.build_container` | `seal.container` | 6 |
+| `sender_tool.cli` | `ct.sender` | 1 |
 | `from crypto.` | `from core.` | 30 |
 | `audit_console` | `console/audit` | 3 |
-| `demo/attack_scripts` | `bench/attack_scripts` | 3 |
+| `demo/attack_scripts` | `gauntlet/attacks` | 3 |
 
 ## 5. Compatibility effects
 
@@ -112,7 +112,7 @@ under the previous naming.
 | Watermark master seeds | Key material. Sender and tracer must agree; both sides were renamed together. Documents watermarked before the change are no longer attributable. |
 | `CANARY_TRAP_GENESIS_ROOT` | Changes the genesis block hash. No chain existed on disk at the time of the rebrand. |
 | `CT_MAGIC` | Was dead code (never referenced) before and after. |
-| Documented commands | `gate.main:app`, `api.main:app`, `cli.sender`, `tracer.verify`, `bench/...`, `tests/...` replace the old paths. |
+| Documented commands | `warden.service:app`, `bridge.service:app`, `ct.sender`, `hound.verify`, `gauntlet/...`, `tests/...` replace the old paths. |
 
 ## 6. Rules for future contributors
 

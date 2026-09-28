@@ -12,9 +12,9 @@ import os
 import itertools
 import pytest
 
-from core.shamir import ShamirSecretSharing
-from core.merkle import MerkleTree, verify_merkle_proof, hash_leaf, hash_children
-from core.pqc import MLKEM768, MLDSA65, canonical_json, b64_encode, b64_decode
+from seal.sharing import ShamirSecretSharing
+from seal.merkle import MerkleTree, verify_merkle_proof, hash_leaf, hash_children
+from seal.pqc_adapter import MLKEM768, MLDSA65, canonical_json, b64_encode, b64_decode
 
 
 # ============================================================================

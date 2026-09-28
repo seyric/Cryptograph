@@ -12,10 +12,10 @@ import os
 import fitz
 import pytest
 
-from mark.segmenter import PDFSegmenter
-from mark.variant_gen import VariantGenerator
-from mark.extractor import WatermarkExtractor
-from mark.codeword import generate_codeword_bits
+from dye.text_layer import PDFSegmenter
+from dye.assembler import VariantGenerator
+from dye.extractor import WatermarkExtractor
+from dye.codeword import generate_codeword_bits
 
 
 @pytest.fixture

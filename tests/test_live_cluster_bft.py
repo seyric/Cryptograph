@@ -15,8 +15,8 @@ import json
 import shutil
 import pytest
 
-from core.pqc import MLDSA65, b64_encode, b64_decode, canonical_json
-from api.client_crypto import RecipientCryptoSession
+from seal.pqc_adapter import MLDSA65, b64_encode, b64_decode, canonical_json
+from bridge.session import RecipientCryptoSession
 
 
 def wait_for_node(url: str, timeout: float = 12.0) -> bool:
@@ -67,7 +67,7 @@ def test_live_cluster_4node_bft_and_fault_tolerance(tmp_path):
                     sys.executable,
                     "-m",
                     "uvicorn",
-                    "gate.main:app",
+                    "warden.service:app",
                     "--host",
                     "127.0.0.1",
                     "--port",
