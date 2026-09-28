@@ -19,7 +19,8 @@ from seal.pqc_adapter import MLDSA65, b64_encode, b64_decode, canonical_json
 from chronicle.ledger import Ledger
 from .policy import PolicyEngine
 from .custody import KeyCustodyManager
-from .consensus import BFTConsensus
+from .consensus import BFTConsensus, QuorumNotReached
+from .consensus_api import register_consensus_endpoints
 
 app = FastAPI(title="CANARY TRAP Validator Node", version="2.1")
 
@@ -58,6 +59,9 @@ ledger = Ledger(db_path=DB_PATH, node_id=NODE_ID)
 policy = PolicyEngine(ledger=ledger)
 custody = KeyCustodyManager(ledger=ledger, node_id=NODE_ID, node_share_index=SHARE_INDEX, wm_master_seed=WM_SEED)
 consensus = BFTConsensus(node_id=NODE_ID, ledger=ledger, validator_sk=VALIDATOR_SK, validator_vk=VALIDATOR_VK)
+
+# The 2-phase commit endpoints live in warden/consensus_api.py.
+register_consensus_endpoints(app, ledger, NODE_ID, VALIDATOR_SK, VALIDATOR_VK)
 
 
 # ============================================================================
@@ -108,48 +112,66 @@ def enroll_identity(req: SignedRequest):
         "signer_id": req.payload["recipient_id"]
     }
 
-    result = consensus.propose_and_commit([entry])
+    try:
+        result = consensus.propose_and_commit([entry])
+    except QuorumNotReached as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+
     return {
         "status": "ENROLLED",
         "recipient_id": req.payload["recipient_id"],
         "block_height": result["height"],
-        "entry_hash": result["entry_hashes"][0]
+        "entry_hash": result["entry_hashes"][0],
+        "quorum_certified": result["quorum_certified"],
     }
 
 
 @app.post("/api/manifest")
 def register_manifest(req: SignedRequest):
-    """Register a document distribution manifest committed to the ledger."""
+    """Register a document distribution manifest committed to the ledger.
+
+    The sender's signature is now verified. Previously this endpoint stored the
+    signature without checking it, so an unsigned manifest could name arbitrary
+    recipients for a document hash.
+    """
     sig_bytes = b64_decode(req.signature_b64)
-    # Validate sender signature (sender signs manifest payload)
-    doc_id = req.payload.get("doc_id")
-    if not doc_id:
-        raise HTTPException(status_code=400, detail="Missing doc_id in manifest")
+    is_valid, reason = policy.validate_manifest_request(req.payload, sig_bytes)
+    if not is_valid:
+        raise HTTPException(status_code=403, detail=reason)
 
     entry = {
         "entry_type": "MANIFEST",
         "payload": req.payload,
         "signature": sig_bytes,
-        "signer_id": req.payload.get("sender_id", "SENDER_OFFICE")
+        "signer_id": req.payload["sender_id"],
     }
 
-    result = consensus.propose_and_commit([entry])
+    try:
+        result = consensus.propose_and_commit([entry])
+    except QuorumNotReached as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+
     return {
         "status": "MANIFEST_COMMITTED",
-        "doc_id": doc_id,
+        "doc_id": req.payload["doc_id"],
         "block_height": result["height"],
-        "entry_hash": result["entry_hashes"][0]
+        "entry_hash": result["entry_hashes"][0],
+        "quorum_certified": result["quorum_certified"],
+        "validators": result["validators"],
     }
 
 
 @app.post("/api/key_shares")
 def deposit_key_shares(deposit: KeySharesDeposit):
     """Store encrypted Shamir key shares for this node's custody."""
-    ledger.store_key_shares(deposit.doc_id, deposit.shares)
+    # Shares are wrapped with this node's own key before touching the database,
+    # so nothing usable is ever written in the clear.
+    stored = custody.store_shares(deposit.doc_id, deposit.shares)
     return {
         "status": "SHARES_STORED",
         "doc_id": deposit.doc_id,
-        "total_shares_stored": len(deposit.shares)
+        "total_shares_stored": stored,
+        "encrypted_at_rest": True,
     }
 
 
@@ -182,7 +204,10 @@ def request_decrypt(req: SignedRequest):
         "signer_id": recipient_id
     }
 
-    result = consensus.propose_and_commit([entry])
+    try:
+        result = consensus.propose_and_commit([entry])
+    except QuorumNotReached as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
     session_entry_hash = result["entry_hashes"][0]
 
     # 2. Release key shares for codeword variants encrypted under ephemeral ML-KEM key
@@ -202,66 +227,6 @@ def request_decrypt(req: SignedRequest):
         },
         "key_release": release_bundle
     }
-
-
-@app.post("/api/consensus/vote")
-def consensus_vote(proposal: Dict[str, Any]):
-    """Peer vote handler in 2-phase commit."""
-    latest = ledger.get_latest_block()
-    target_height = latest["height"] + 1
-
-    if proposal.get("height") != target_height:
-        return {"vote": "REJECT", "reason": f"Expected height {target_height}, got {proposal.get('height')}"}
-
-    if proposal.get("prev_hash") != latest["block_hash"]:
-        return {"vote": "REJECT", "reason": "Previous block hash mismatch"}
-
-    candidate_header = {
-        "height": proposal["height"],
-        "prev_hash": proposal["prev_hash"],
-        "merkle_root": "0" * 64,
-        "timestamp": proposal.get("proposer_clock", int(time.time())),
-        "proposer_id": proposal.get("proposer_id")
-    }
-
-    sig = MLDSA65.sign(VALIDATOR_SK, canonical_json(candidate_header))
-    return {
-        "vote": "APPROVE",
-        "signature_b64": b64_encode(sig),
-        "clock": int(time.time())
-    }
-
-
-@app.post("/api/consensus/commit_block")
-def consensus_commit_block(commit_data: Dict[str, Any]):
-    """Peer commit broadcast handler."""
-    latest = ledger.get_latest_block()
-    target_height = latest["height"] + 1
-
-    if commit_data.get("height") != target_height:
-        return {"status": "SKIPPED", "reason": f"Expected height {target_height}, got {commit_data.get('height')}"}
-
-    entries = [
-        {
-            "entry_type": e["entry_type"],
-            "payload": e["payload"],
-            "signature": b64_decode(e["signature_b64"]),
-            "signer_id": e["signer_id"]
-        }
-        for e in commit_data["entries"]
-    ]
-
-    validator_sigs = {
-        k: b64_decode(v) for k, v in commit_data["validator_signatures"].items()
-    }
-
-    res = ledger.commit_block(
-        entries=entries,
-        proposer_id=commit_data["proposer_id"],
-        validator_sigs=validator_sigs,
-        timestamp=commit_data.get("timestamp", int(time.time()))
-    )
-    return {"status": "COMMITTED", "height": res["height"]}
 
 
 @app.get("/api/proof/{entry_hash}")

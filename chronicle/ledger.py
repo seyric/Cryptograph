@@ -19,6 +19,19 @@ from seal.pqc_adapter import canonical_json, b64_encode, b64_decode
 from .entry import compute_entry_hash
 from .proofs import build_inclusion_proof, verify_chain
 from .schema import SCHEMA_SQL
+from .block_cert import (
+    CERTIFICATE_VERSION,
+    QuorumCertificate,
+    block_hash_for,
+)
+
+from .ledger_genesis import (
+    GENESIS_MERKLE_ROOT,
+    GENESIS_PREV_HASH,
+    GENESIS_PROPOSER,
+    GENESIS_ROOT_LABEL,
+    GENESIS_TIMESTAMP,
+)
 
 
 class Ledger:
@@ -43,24 +56,27 @@ class Ledger:
             conn.executescript(SCHEMA_SQL)
 
     def _ensure_genesis(self):
-        """Commit Genesis Block (Height 0) if ledger is newly created."""
+        """Create the genesis block if the ledger is empty.
+
+        The genesis header is fully deterministic: fixed timestamp, fixed
+        proposer, fixed root. Every node in a cluster must agree on the genesis
+        block hash, because each block's ``prev_hash`` chains from it and peers
+        reject a proposal whose ``prev_hash`` they do not recognise. Deriving the
+        timestamp from the wall clock here gave each node a different genesis,
+        which silently prevented any two nodes from ever reaching agreement.
+        """
         with self._get_conn() as conn:
             cur = conn.cursor()
             cur.execute("SELECT COUNT(*) FROM blocks;")
             if cur.fetchone()[0] == 0:
-                prev_hash = b"\x00" * 32
-                merkle_root = hashlib.sha3_256(b"CANARY_TRAP_GENESIS_ROOT").digest()
-                timestamp = int(time.time())
-                proposer_id = "GENESIS"
-                
-                header_data = {
-                    "height": 0,
-                    "prev_hash": prev_hash.hex(),
-                    "merkle_root": merkle_root.hex(),
-                    "timestamp": timestamp,
-                    "proposer_id": proposer_id
-                }
-                block_hash = hashlib.sha3_256(canonical_json(header_data)).digest()
+                prev_hash = GENESIS_PREV_HASH
+                merkle_root = GENESIS_MERKLE_ROOT
+                timestamp = GENESIS_TIMESTAMP
+                proposer_id = GENESIS_PROPOSER
+
+                block_hash = block_hash_for(
+                    0, prev_hash.hex(), merkle_root.hex(), timestamp, proposer_id
+                )
 
                 cur.execute(
                     "INSERT INTO blocks (height, prev_hash, merkle_root, timestamp, proposer_id, block_hash) "
@@ -91,19 +107,21 @@ class Ledger:
         entries: List[Dict[str, Any]],
         proposer_id: str,
         validator_sigs: Dict[str, bytes],
-        timestamp: Optional[int] = None
+        timestamp: Optional[int] = None,
+        validator_keys: Optional[Dict[str, bytes]] = None,
     ) -> Dict[str, Any]:
         """Commit a new block with its transactions and validator signatures.
-        
+
         Args:
-            entries: List of dicts with:
-                - entry_type: str (ENROLL, MANIFEST, DECRYPT_REQUEST, etc.)
-                - payload: dict or str
-                - signature: bytes (ML-DSA signature)
-                - signer_id: str
-            proposer_id: ID of validator proposing the block.
-            validator_sigs: Dict mapping validator_id -> ML-DSA-65 signature over block_hash.
-            timestamp: Optional block timestamp (defaults to current time).
+            entries: Each needs ``entry_type``, ``payload``, ``signature`` and
+                ``signer_id``.
+            proposer_id: ID of the validator that assembled the block.
+            validator_sigs: validator_id -> ML-DSA-65 signature over the block
+                header (see :func:`chronicle.block_cert.signing_bytes`).
+            timestamp: Optional block timestamp (defaults to now).
+            validator_keys: validator_id -> public key, stored alongside each
+                signature so an evidence bundle can verify the quorum offline.
+                Without it the certificate is emitted but cannot be checked.
         """
         if not entries:
             raise ValueError("Cannot commit an empty block (must have at least one entry)")
@@ -139,14 +157,9 @@ class Ledger:
             merkle_root = tree.root
 
             # Compute block hash
-            header_dict = {
-                "height": new_height,
-                "prev_hash": prev_hash.hex(),
-                "merkle_root": merkle_root.hex(),
-                "timestamp": block_time,
-                "proposer_id": proposer_id
-            }
-            block_hash = hashlib.sha3_256(canonical_json(header_dict)).digest()
+            block_hash = block_hash_for(
+                new_height, prev_hash.hex(), merkle_root.hex(), block_time, proposer_id
+            )
 
             # Insert block
             cur.execute(
@@ -162,12 +175,13 @@ class Ledger:
                 entry_records
             )
 
-            # Insert validator signatures
+            # Insert validator signatures and their public keys
             for val_id, sig in validator_sigs.items():
                 cur.execute(
-                    "INSERT INTO block_signatures (block_height, validator_id, signature) "
-                    "VALUES (?, ?, ?);",
-                    (new_height, val_id, sig)
+                    "INSERT INTO block_signatures "
+                    "(block_height, validator_id, signature, public_key) "
+                    "VALUES (?, ?, ?, ?);",
+                    (new_height, val_id, sig, (validator_keys or {}).get(val_id))
                 )
 
             # Update specialized state tables (enrolled_identities, manifests)
@@ -207,12 +221,24 @@ class Ledger:
 
             conn.commit()
 
+            certificate = QuorumCertificate(
+                version=CERTIFICATE_VERSION,
+                height=new_height,
+                prev_hash=prev_hash.hex(),
+                merkle_root=merkle_root.hex(),
+                timestamp=block_time,
+                proposer_id=proposer_id,
+                block_hash=block_hash.hex(),
+                signatures=dict(validator_sigs),
+            )
+
             return {
                 "height": new_height,
                 "block_hash": block_hash.hex(),
                 "merkle_root": merkle_root.hex(),
                 "total_entries": len(entries),
-                "entry_hashes": [r[0].hex() for r in entry_records]
+                "entry_hashes": [r[0].hex() for r in entry_records],
+                "certificate": certificate.to_dict(),
             }
 
     def store_key_shares(self, doc_id: str, shares_records: List[Dict[str, Any]]):
@@ -303,14 +329,27 @@ class Ledger:
             cur.execute("SELECT * FROM blocks WHERE height = ?;", (height,))
             b_row = cur.fetchone()
             cur.execute("SELECT * FROM block_signatures WHERE block_height = ?;", (height,))
-            sigs = [{"validator_id": r["validator_id"], "signature": b64_encode(r["signature"])} for r in cur.fetchall()]
+            sigs = []
+            for row in cur.fetchall():
+                item = {
+                    "validator_id": row["validator_id"],
+                    "signature": b64_encode(row["signature"]),
+                }
+                # Carry the public key so an offline verifier can check the
+                # signature instead of taking the count on trust.
+                if row["public_key"] is not None:
+                    item["public_key"] = b64_encode(row["public_key"])
+                sigs.append(item)
 
             return {
                 "block_height": height,
                 "block_hash": b_row["block_hash"].hex(),
                 "merkle_root": b_row["merkle_root"].hex(),
+                "prev_hash": b_row["prev_hash"].hex(),
+                "proposer_id": b_row["proposer_id"],
+                "block_timestamp": b_row["timestamp"],
                 "proof": [{"position": p["position"], "hash": p["hash"].hex()} for p in proof],
-                "validator_signatures": sigs
+                "validator_signatures": sigs,
             }
 
     def verify_integrity(self) -> Tuple[bool, Optional[str]]:

@@ -142,9 +142,11 @@ def test_walking_skeleton_end_to_end(clean_env):
     man_res = ledger.commit_block([man_entry], proposer_id="TEST_NODE_01", validator_sigs={"TEST_NODE_01": b"dummy_sig"})
     assert man_res["height"] > 0
 
-    # Deposit Key Shares for Nodes 1, 2, and 3
-    for node_idx in [1, 2, 3]:
-        ledger.store_key_shares(doc_id, node_shares[node_idx])
+    # Deposit Key Shares for Nodes 1, 2, and 3.
+    # Shares must go through each node's KeyCustodyManager so they are wrapped
+    # with that node's own key before reaching the database.
+    for node_custody in custody_nodes:
+        node_custody.store_shares(doc_id, node_shares[node_custody.share_index])
 
     # ========================================================================
     # 3. Alice Decryption Session ("Log Before Key")

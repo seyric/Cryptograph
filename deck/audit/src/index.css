@@ -1,29 +1,57 @@
 @charset "UTF-8";
 
-:root {
-  --bg-main: #050811;
-  --bg-panel: rgba(11, 17, 32, 0.85);
-  --bg-panel-dark: rgba(7, 10, 20, 0.95);
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-cyan: rgba(6, 182, 212, 0.3);
-  --border-emerald: rgba(16, 185, 129, 0.35);
-  --border-rose: rgba(244, 63, 94, 0.6);
+/* ==========================================================================
+   CANARY TRAP — LIQUID GLASS UI DESIGN SYSTEM (AUDIT CONSOLE)
+   Post-Quantum Byzantine Ledger & Forensic Attribution Interface
+   ========================================================================== */
 
+:root {
+  /* Liquid Glass Palette */
+  --bg-space: #030712;
+  --bg-deep: #050b1a;
+  
+  /* Glass Surface Tints */
+  --glass-tint-base: rgba(12, 19, 38, 0.58);
+  --glass-tint-light: rgba(255, 255, 255, 0.06);
+  --glass-tint-hover: rgba(20, 32, 60, 0.72);
+  --glass-tint-card: rgba(10, 16, 32, 0.65);
+  
+  /* Liquid Specular Highlights & Borders */
+  --glass-border: rgba(255, 255, 255, 0.16);
+  --glass-border-hover: rgba(255, 255, 255, 0.32);
+  --glass-border-cyan: rgba(6, 182, 212, 0.5);
+  --glass-border-emerald: rgba(16, 185, 129, 0.5);
+  --glass-border-purple: rgba(168, 85, 247, 0.5);
+  --glass-border-rose: rgba(244, 63, 94, 0.6);
+  
+  /* Specular Glare & Deep Glass Shadows */
+  --glass-shine: inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 2px 0 rgba(0, 0, 0, 0.4);
+  --glass-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.7), 0 0 35px -5px rgba(6, 182, 212, 0.08);
+  --glass-shadow-lg: 0 32px 64px -16px rgba(0, 0, 0, 0.8), 0 0 50px rgba(14, 165, 233, 0.15);
+  --glow-cyan: 0 0 25px rgba(6, 182, 212, 0.45);
+  --glow-emerald: 0 0 25px rgba(16, 185, 129, 0.45);
+  --glow-purple: 0 0 25px rgba(168, 85, 247, 0.45);
+  --glow-rose: 0 0 35px rgba(244, 63, 94, 0.6);
+
+  /* High-Tech Accents */
+  --accent-cyan: #06b6d4;
+  --accent-cyan-bright: #38bdf8;
+  --accent-emerald: #10b981;
+  --accent-emerald-bright: #34d399;
+  --accent-purple: #8b5cf6;
+  --accent-purple-bright: #c084fc;
+  --accent-amber: #f59e0b;
+  --accent-rose: #f43f5e;
+  
+  /* Text */
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
   --text-dim: #64748b;
 
-  --accent-cyan: #06b6d4;
-  --accent-emerald: #10b981;
-  --accent-purple: #8b5cf6;
-  --accent-amber: #f59e0b;
-  --accent-rose: #f43f5e;
-
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
-  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Consolas", monospace;
-
-  --shadow-alarm: 0 0 40px rgba(244, 63, 94, 0.5);
-  --shadow-cyan: 0 0 25px rgba(6, 182, 212, 0.2);
+  /* Typography */
+  --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Cascadia Code', monospace;
 }
 
 * {
@@ -33,35 +61,133 @@
 }
 
 body {
-  background-color: var(--bg-main);
-  background-image: 
-    radial-gradient(circle at 10% 20%, rgba(14, 165, 233, 0.06) 0%, transparent 40%),
-    radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.06) 0%, transparent 40%);
+  background-color: var(--bg-space);
   color: var(--text-main);
   font-family: var(--font-sans);
   min-height: 100vh;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
+  position: relative;
+  line-height: 1.5;
+}
+
+/* ==========================================================================
+   LIQUID BACKGROUND AMBIENT BLOBS (DYNAMIC LIGHT REFRACTION)
+   ========================================================================== */
+.liquid-canvas {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.liquid-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.55;
+  mix-blend-mode: screen;
+  will-change: transform;
+}
+
+.blob-1 {
+  width: 550px;
+  height: 550px;
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.55) 0%, rgba(14, 165, 233, 0.2) 65%, transparent 80%);
+  top: -120px;
+  left: -80px;
+  animation: liquid-drift-1 22s infinite alternate ease-in-out;
+}
+
+.blob-2 {
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.5) 0%, rgba(79, 70, 229, 0.18) 60%, transparent 80%);
+  bottom: -150px;
+  right: -100px;
+  animation: liquid-drift-2 26s infinite alternate ease-in-out;
+}
+
+.blob-3 {
+  width: 480px;
+  height: 480px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.4) 0%, rgba(5, 150, 105, 0.12) 65%, transparent 80%);
+  top: 35%;
+  left: 45%;
+  animation: liquid-drift-3 20s infinite alternate ease-in-out;
+}
+
+.blob-4 {
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(circle, rgba(236, 72, 153, 0.3) 0%, rgba(168, 85, 247, 0.15) 60%, transparent 80%);
+  top: 60%;
+  left: 10%;
+  animation: liquid-drift-4 28s infinite alternate ease-in-out;
+}
+
+@keyframes liquid-drift-1 {
+  0% { transform: translate(0, 0) scale(1) rotate(0deg); }
+  50% { transform: translate(120px, 80px) scale(1.15) rotate(45deg); }
+  100% { transform: translate(40px, 140px) scale(0.9) rotate(90deg); }
+}
+
+@keyframes liquid-drift-2 {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-100px, -90px) scale(1.2); }
+  100% { transform: translate(-50px, -40px) scale(0.95); }
+}
+
+@keyframes liquid-drift-3 {
+  0% { transform: translate(0, 0) scale(0.95); }
+  50% { transform: translate(-80px, 70px) scale(1.1); }
+  100% { transform: translate(90px, -60px) scale(1); }
+}
+
+@keyframes liquid-drift-4 {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(90px, -70px) scale(1.15); }
+  100% { transform: translate(-40px, 60px) scale(0.85); }
+}
+
+/* Subtlest Caustic Grid Mesh Overlay */
+.liquid-grid-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image: 
+    radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+  opacity: 0.45;
+  z-index: 1;
 }
 
 #root {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  position: relative;
+  z-index: 2;
 }
 
-/* Header */
+/* ==========================================================================
+   LIQUID GLASS HEADER & DOCK
+   ========================================================================== */
 .audit-header {
-  background: var(--bg-panel);
-  backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--border-subtle);
-  padding: 16px 32px;
+  background: var(--glass-tint-base);
+  backdrop-filter: blur(28px) saturate(200%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
+  border-bottom: 1px solid var(--glass-border);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+  padding: 18px 36px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   position: sticky;
   top: 0;
-  z-index: 40;
+  z-index: 50;
+  transition: all 0.3s ease;
 }
 
 .brand-wrapper {
@@ -71,206 +197,441 @@ body {
 }
 
 .logo-badge {
-  width: 42px;
-  height: 42px;
-  background: linear-gradient(135deg, #0ea5e9, #6366f1);
-  border-radius: 10px;
+  width: 46px;
+  height: 46px;
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.8), rgba(99, 102, 241, 0.9));
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
-  box-shadow: var(--shadow-cyan);
+  font-size: 24px;
+  box-shadow: 
+    0 10px 25px rgba(6, 182, 212, 0.4),
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.logo-badge::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.35), transparent);
+  border-radius: 14px 14px 0 0;
 }
 
 .console-title {
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
   color: #fff;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
 }
 
 .console-subtitle {
   font-size: 11px;
-  color: var(--accent-cyan);
+  color: var(--accent-cyan-bright);
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 1.4px;
   font-weight: 600;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-/* Tamper Flashing Banner */
+/* ==========================================================================
+   ALARM BANNER (CRITICAL TAMPER LIQUID SHEEN)
+   ========================================================================== */
 .alarm-banner {
-  background: linear-gradient(90deg, rgba(244, 63, 94, 0.25) 0%, rgba(185, 28, 28, 0.4) 50%, rgba(244, 63, 94, 0.25) 100%);
-  border-top: 2px solid var(--accent-rose);
-  border-bottom: 2px solid var(--accent-rose);
+  background: linear-gradient(90deg, rgba(244, 63, 94, 0.3) 0%, rgba(185, 28, 28, 0.5) 50%, rgba(244, 63, 94, 0.3) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--accent-rose);
+  border-bottom: 1px solid var(--accent-rose);
   color: #fff;
-  padding: 14px 28px;
+  padding: 14px 36px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  animation: alarm-pulse 1.2s infinite ease-in-out;
-  box-shadow: var(--shadow-alarm);
+  animation: alarm-pulse 1.4s infinite ease-in-out;
+  box-shadow: 0 0 40px rgba(244, 63, 94, 0.55), inset 0 1px 1px rgba(255, 255, 255, 0.3);
 }
 
 @keyframes alarm-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.82; transform: scale(0.998); }
+  50% { opacity: 0.88; transform: scale(0.998); }
 }
 
-/* Layout */
+/* ==========================================================================
+   DASHBOARD GRID & LIQUID GLASS PANELS
+   ========================================================================== */
 .dashboard-grid {
   display: grid;
-  grid-template-columns: 340px 1fr;
-  gap: 24px;
-  padding: 24px 32px;
+  grid-template-columns: 360px 1fr;
+  gap: 28px;
+  padding: 28px 36px;
   flex: 1;
-  max-width: 1700px;
+  max-width: 1760px;
   width: 100%;
   margin: 0 auto;
 }
 
-/* Glass Card */
-.glass-panel {
-  background: var(--bg-panel);
-  backdrop-filter: blur(16px);
-  border: 1px solid var(--border-subtle);
-  border-radius: 14px;
-  padding: 20px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+@media (max-width: 1080px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
-/* Badges */
+/* Primary Liquid Glass Panel */
+.glass-panel {
+  background: var(--glass-tint-card);
+  backdrop-filter: blur(30px) saturate(210%);
+  -webkit-backdrop-filter: blur(30px) saturate(210%);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: var(--glass-shadow), var(--glass-shine);
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.glass-panel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  pointer-events: none;
+}
+
+.glass-panel:hover {
+  border-color: rgba(255, 255, 255, 0.24);
+  box-shadow: var(--glass-shadow-lg), var(--glass-shine);
+}
+
+/* ==========================================================================
+   STATUS PILLS & LIQUID DROPLETS
+   ========================================================================== */
 .status-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   font-size: 11px;
-  font-weight: 600;
-  padding: 4px 10px;
+  font-weight: 700;
+  padding: 5px 12px;
   border-radius: 9999px;
   font-family: var(--font-mono);
-}
-
-.pill-emerald {
-  background: rgba(16, 185, 129, 0.15);
-  color: #34d399;
-  border: 1px solid var(--border-emerald);
-}
-
-.pill-rose {
-  background: rgba(244, 63, 94, 0.15);
-  color: #fb7185;
-  border: 1px solid var(--border-rose);
-}
-
-.pill-cyan {
-  background: rgba(6, 182, 212, 0.15);
-  color: #38bdf8;
-  border: 1px solid var(--border-cyan);
-}
-
-.pill-purple {
-  background: rgba(139, 92, 246, 0.15);
-  color: #c084fc;
-  border: 1px solid rgba(139, 92, 246, 0.3);
-}
-
-/* Node cards */
-.node-card {
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid var(--border-subtle);
-  border-radius: 10px;
-  padding: 14px;
-  margin-bottom: 12px;
+  letter-spacing: 0.5px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.25);
   transition: all 0.2s ease;
 }
 
+.pill-emerald {
+  background: rgba(16, 185, 129, 0.18);
+  color: #34d399;
+  border: 1px solid var(--glass-border-emerald);
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+}
+
+.pill-rose {
+  background: rgba(244, 63, 94, 0.2);
+  color: #fb7185;
+  border: 1px solid var(--glass-border-rose);
+  box-shadow: 0 0 20px rgba(244, 63, 94, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+}
+
+.pill-cyan {
+  background: rgba(6, 182, 212, 0.18);
+  color: #38bdf8;
+  border: 1px solid var(--glass-border-cyan);
+  box-shadow: 0 0 15px rgba(6, 182, 212, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+}
+
+.pill-purple {
+  background: rgba(139, 92, 246, 0.18);
+  color: #c084fc;
+  border: 1px solid var(--glass-border-purple);
+  box-shadow: 0 0 15px rgba(139, 92, 246, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+}
+
+/* Liquid Pulsing Dot */
+.liquid-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: currentColor;
+  box-shadow: 0 0 10px currentColor;
+  position: relative;
+}
+
+.liquid-dot::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  opacity: 0.6;
+  animation: liquid-pulse-wave 2s infinite ease-out;
+}
+
+@keyframes liquid-pulse-wave {
+  0% { transform: scale(0.8); opacity: 0.8; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+/* ==========================================================================
+   NODE CARDS (LIQUID GLASS TILES)
+   ========================================================================== */
+.node-card {
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+
 .node-card:hover {
-  border-color: var(--border-cyan);
-  background: rgba(20, 30, 55, 0.7);
+  border-color: var(--accent-cyan);
+  background: rgba(22, 34, 64, 0.7);
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(6, 182, 212, 0.2);
 }
 
 .node-card.tampered {
   border-color: var(--accent-rose);
-  background: rgba(244, 63, 94, 0.08);
+  background: rgba(244, 63, 94, 0.12);
+  box-shadow: 0 0 25px rgba(244, 63, 94, 0.35);
 }
 
-/* Table */
+/* ==========================================================================
+   LIQUID GLASS TAB BAR & DOCK
+   ========================================================================== */
+.tab-bar {
+  display: flex;
+  gap: 8px;
+  background: rgba(11, 18, 36, 0.7);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 6px;
+  margin-bottom: 24px;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.1), 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+.tab-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 20px;
+  cursor: pointer;
+  border-radius: 12px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+.tab-btn:hover:not(.active) {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tab-btn.active {
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.25) 0%, rgba(99, 102, 241, 0.3) 100%);
+  color: #fff;
+  border-color: rgba(6, 182, 212, 0.6);
+  box-shadow: 
+    0 4px 20px rgba(6, 182, 212, 0.35),
+    inset 0 1px 1px rgba(255, 255, 255, 0.5);
+}
+
+/* ==========================================================================
+   BUTTONS (LIQUID GLASS GLOSS EFFECT)
+   ========================================================================== */
+.action-btn {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.05) 48%, rgba(255, 255, 255, 0) 50%, rgba(255, 255, 255, 0.1) 100%),
+              linear-gradient(135deg, #0284c7, #6366f1);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  font-family: var(--font-display);
+  font-weight: 700;
+  padding: 9px 18px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  letter-spacing: 0.4px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 
+    0 6px 20px rgba(2, 132, 199, 0.4),
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.5);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.action-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 10px 28px rgba(2, 132, 199, 0.6),
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.7);
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.action-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(40%);
+}
+
+/* Secondary Frosted Glass Button */
+.btn-glass-secondary {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-main);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 12px;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15);
+  transition: all 0.2s ease;
+}
+
+.btn-glass-secondary:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+
+/* ==========================================================================
+   DATA TABLES (FROSTED ROWS)
+   ========================================================================== */
 .data-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0 6px;
   font-size: 13px;
 }
 
 .data-table th {
   text-align: left;
-  padding: 12px 16px;
-  font-weight: 600;
+  padding: 12px 18px;
+  font-weight: 700;
   color: var(--text-muted);
-  border-bottom: 1px solid var(--border-subtle);
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 1.2px;
+  border: none;
 }
 
 .data-table td {
-  padding: 12px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  padding: 14px 18px;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   font-family: var(--font-mono);
   font-size: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+}
+
+.data-table tr td:first-child {
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.data-table tr td:last-child {
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .data-table tr:hover td {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(25, 40, 75, 0.65);
+  border-top-color: rgba(6, 182, 212, 0.4);
+  border-bottom-color: rgba(6, 182, 212, 0.4);
 }
 
-/* Tabs */
-.tab-bar {
-  display: flex;
-  gap: 12px;
-  border-bottom: 1px solid var(--border-subtle);
-  margin-bottom: 20px;
-  padding-bottom: 10px;
+/* ==========================================================================
+   LIQUID PROGRESS BAR
+   ========================================================================== */
+.liquid-progress-track {
+  width: 100%;
+  height: 12px;
+  background: rgba(15, 23, 42, 0.8);
+  border-radius: 9999px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
+  position: relative;
 }
 
-.tab-btn {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 14px;
-  font-weight: 600;
-  padding: 8px 16px;
-  cursor: pointer;
-  border-radius: 8px;
-  transition: all 0.2s ease;
+.liquid-progress-fill {
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #06b6d4, #10b981);
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.6);
+  position: relative;
+  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.tab-btn.active {
-  background: rgba(14, 165, 233, 0.15);
-  color: #38bdf8;
-  border: 1px solid var(--border-cyan);
+.liquid-progress-fill::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.4), transparent);
 }
 
-.tab-btn:hover:not(.active) {
-  color: #fff;
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
-
-/* Buttons */
-.action-btn {
-  background: linear-gradient(135deg, #0284c7, #6366f1);
-  color: #fff;
-  border: none;
-  font-weight: 600;
-  padding: 8px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 12px;
-  transition: all 0.2s ease;
+::-webkit-scrollbar-track {
+  background: rgba(4, 7, 18, 0.6);
 }
-
-.action-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4);
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(6, 182, 212, 0.45);
 }

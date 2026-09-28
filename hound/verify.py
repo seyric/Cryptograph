@@ -15,6 +15,11 @@ from typing import Dict, Any, Tuple, List
 from seal.pqc_adapter import MLDSA65, b64_decode
 from seal.merkle import verify_merkle_proof
 from chronicle.entry import compute_entry_hash
+from chronicle.block_cert import (
+    QUORUM_THRESHOLD,
+    QuorumCertificate,
+    verify_certificate,
+)
 
 
 def verify_evidence_bundle(bundle_data: Dict[str, Any]) -> Tuple[bool, List[str]]:
@@ -87,24 +92,67 @@ def verify_evidence_bundle(bundle_data: Dict[str, Any]) -> Tuple[bool, List[str]
         "proposer_id": "NODE_01"
     }
 
-    val_sigs = proof.get("validator_signatures", [])
-    if not val_sigs:
-        return False, ["CRITICAL: No validator signatures present on block!"]
+    # 5. Verify the quorum certificate.
+    #
+    # Previously this counted validator signatures and, when a signature had no
+    # accompanying public key, counted it anyway - so a bundle could claim a
+    # quorum that did not exist. The certificate is now verified against the
+    # validator public keys carried in the bundle, and any validator we cannot
+    # check is rejected rather than believed.
+    certificate_data = proof.get("quorum_certificate")
+    if not certificate_data:
+        return False, [
+            "CRITICAL: Evidence bundle carries no quorum certificate. "
+            "A block without a verifiable certificate cannot support attribution."
+        ]
 
-    valid_quorum_count = 0
-    for v in val_sigs:
-        v_id = v["validator_id"]
-        v_sig_bytes = b64_decode(v["signature"])
-        # If validator pk provided in bundle, verify
-        if "public_key" in v:
-            v_pk = b64_decode(v["public_key"])
-            if MLDSA65.verify(v_pk, bytes.fromhex(proof["block_hash"]), v_sig_bytes):
-                valid_quorum_count += 1
-                log.append(f"  - Validator {v_id} ML-DSA-65 signature: VALID")
-        else:
-            valid_quorum_count += 1
+    threshold = int(certificate_data.get("quorum_threshold", QUORUM_THRESHOLD))
+    validator_keys: Dict[str, bytes] = {}
+    for validator_id, record in (certificate_data.get("signatures") or {}).items():
+        public_key_b64 = record.get("public_key")
+        if not public_key_b64:
+            return False, [
+                f"CRITICAL: Validator {validator_id} signature has no public key, "
+                "so it cannot be verified. Refusing an unverifiable quorum."
+            ]
+        try:
+            validator_keys[validator_id] = b64_decode(public_key_b64)
+        except Exception as exc:
+            return False, [f"CRITICAL: Validator {validator_id} public key is malformed: {exc}"]
 
-    log.append(f"[PASS] Step 4: Validator quorum signatures verified ({valid_quorum_count} signatures).")
+    certificate = QuorumCertificate(
+        version=certificate_data["version"],
+        height=int(certificate_data["height"]),
+        prev_hash=certificate_data["prev_hash"],
+        merkle_root=certificate_data["merkle_root"],
+        timestamp=int(certificate_data["timestamp"]),
+        proposer_id=certificate_data["proposer_id"],
+        block_hash=certificate_data["block_hash"],
+        signatures={
+            validator_id: b64_decode(record["signature"])
+            for validator_id, record in certificate_data["signatures"].items()
+        },
+    )
+
+    # The certificate must describe the same block the inclusion proof anchors to.
+    if certificate.merkle_root != proof["merkle_root"]:
+        return False, [
+            "CRITICAL: Quorum certificate does not describe the block in the "
+            f"inclusion proof ({certificate.merkle_root} != {proof['merkle_root']})"
+        ]
+
+    quorum_ok, valid_ids, problems = verify_certificate(certificate, validator_keys, threshold)
+    for validator_id in valid_ids:
+        log.append(f"  - Validator {validator_id} ML-DSA-65 signature: VALID")
+    if not quorum_ok:
+        return False, ["CRITICAL: Quorum certificate failed verification:"] + [
+            f"  - {problem}" for problem in problems
+        ]
+
+    log.append(
+        f"[PASS] Step 4: Quorum certificate verified "
+        f"({len(valid_ids)}/{threshold} validators signed this exact header)."
+    )
 
     # 6. Verify Attribution Correlation Margin
     score = attr["matching_score"]

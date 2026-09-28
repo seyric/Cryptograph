@@ -35,7 +35,7 @@ from bridge.session import RecipientCryptoSession
 from hound.attribution import ForensicAccuser
 from hound.evidence import EvidenceBundleBuilder
 from hound.verify import verify_evidence_bundle
-from .fixtures import write_demo_directive
+from gauntlet.fixtures import write_demo_directive
 
 # Terminal Styling
 C_RESET = "\033[0m"
@@ -197,9 +197,10 @@ def run_full_demo():
     }
     man_res = commit_quorum_block(nodes, [man_entry], proposer_idx=2)
 
-    # Store Shamir key shares across nodes
+    # Store Shamir key shares across nodes. Each node wraps its own shares with
+    # its own key before they reach the database.
     for node in nodes:
-        node["ledger"].store_key_shares(doc_id, node_shares[node["share_index"]])
+        node["custody"].store_shares(doc_id, node_shares[node["share_index"]])
     print_success(f"Container Created: {ct_container_path} ({len(container_bytes)} bytes across {TOTAL_BLOCKS} blocks)")
     print_success(f"Manifest Committed: Block #{man_res['height']} (Shamir t=3, n=4 shares distributed across quorum)")
 

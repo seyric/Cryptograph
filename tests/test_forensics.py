@@ -22,6 +22,7 @@ from bridge.session import RecipientCryptoSession
 from hound.attribution import ForensicAccuser
 from hound.evidence import EvidenceBundleBuilder
 from hound.verify import verify_evidence_bundle
+from quorum_helpers import QuorumFixture
 
 
 @pytest.fixture
@@ -36,6 +37,9 @@ def forensics_env(tmp_path):
     ledger = Ledger(db_path=db_path, node_id="VAL_NODE_01")
     policy = PolicyEngine(ledger=ledger)
     custody = KeyCustodyManager(ledger=ledger, node_id="VAL_NODE_01", node_share_index=1, wm_master_seed=wm_seed)
+    # Real validator keys: the offline verifier now refuses any signature whose
+    # public key it cannot check, so blocks must carry a genuine quorum.
+    quorum = QuorumFixture()
 
     # 1. Enroll Alice and Bob
     alice = RecipientCryptoSession(recipient_id="ALICE", keys_dir=keys_dir)
@@ -44,7 +48,7 @@ def forensics_env(tmp_path):
     for r in [alice, bob]:
         p, sig = r.get_enroll_payload()
         entry = {"entry_type": "ENROLL", "payload": p, "signature": b64_decode(sig), "signer_id": r.recipient_id}
-        ledger.commit_block([entry], proposer_id="VAL_NODE_01", validator_sigs={"VAL_NODE_01": b"sig"})
+        quorum.commit(ledger, [entry])
 
     # 2. Distribute 6-block document
     sample_pdf = os.path.join(test_dir, "source.pdf")
@@ -72,15 +76,22 @@ def forensics_env(tmp_path):
     )
 
     man_entry = {"entry_type": "MANIFEST", "payload": man["payload"], "signature": b64_decode(man["signature_b64"]), "signer_id": "SENDER"}
-    ledger.commit_block([man_entry], proposer_id="VAL_NODE_01", validator_sigs={"VAL_NODE_01": b"sig"})
+    quorum.commit(ledger, [man_entry])
+    # Each node wraps its own shares with its own key before storing them.
     for s_idx in [1, 2, 3]:
-        ledger.store_key_shares("DOC_CABINET_001", shares[s_idx])
+        node_custody = KeyCustodyManager(
+            ledger=ledger,
+            node_id=f"VAL_NODE_0{s_idx}",
+            node_share_index=s_idx,
+            wm_master_seed=wm_seed,
+        )
+        node_custody.store_shares("DOC_CABINET_001", shares[s_idx])
 
     # 3. Alice decrypts
     _, a_meta, a_blocks = alice.unwrap_container(c_bytes)
     a_req, a_sig, a_dk = alice.create_decrypt_request("DOC_CABINET_001")
     a_entry = {"entry_type": "DECRYPT_REQUEST", "payload": a_req, "signature": b64_decode(a_sig), "signer_id": "ALICE"}
-    a_commit = ledger.commit_block([a_entry], proposer_id="VAL_NODE_01", validator_sigs={"VAL_NODE_01": b"sig"})
+    a_commit = quorum.commit(ledger, [a_entry])
     a_hash = a_commit["entry_hashes"][0]
 
     custody_nodes = [
@@ -97,7 +108,7 @@ def forensics_env(tmp_path):
     _, b_meta, b_blocks = bob.unwrap_container(c_bytes)
     b_req, b_sig, b_dk = bob.create_decrypt_request("DOC_CABINET_001")
     b_entry = {"entry_type": "DECRYPT_REQUEST", "payload": b_req, "signature": b64_decode(b_sig), "signer_id": "BOB"}
-    b_commit = ledger.commit_block([b_entry], proposer_id="VAL_NODE_01", validator_sigs={"VAL_NODE_01": b"sig"})
+    b_commit = quorum.commit(ledger, [b_entry])
     b_hash = b_commit["entry_hashes"][0]
 
     b_releases = [

@@ -1,22 +1,25 @@
-"""Policy Enforcement and Authorization Logic for CANARY TRAP Validator Nodes.
+"""Policy enforcement and authorization for validator nodes.
 
-Checks:
-- Recipient identity enrollment and revocation status
-- Document manifest existence and recipient authorization
-- Document expiry and decryption quotas
-- Cryptographic verification of recipient ML-DSA-65 signatures
+Checks applied to each request type:
+- ``ENROLL`` — well-formed public keys, and a valid self-signature.
+- ``MANIFEST`` — the sender's ML-DSA-65 signature over the manifest, verified
+  against the registered sender key. Previously this was stored but never
+  checked, which let anyone who could reach the endpoint register a manifest
+  naming arbitrary recipients.
+- ``DECRYPT_REQUEST`` — recipient enrolled and not revoked, valid recipient
+  signature, manifest exists, not expired, recipient authorised, quota remaining.
 """
 
 import json
 import time
-from typing import Tuple, Dict, Any, Optional
+from typing import Any, Dict, Optional, Tuple
 
 from seal.pqc_adapter import MLDSA65, b64_decode
 from chronicle.ledger import Ledger
 
 
 class PolicyEngine:
-    """Enforces zero-trust access control and cryptographic authentication."""
+    """Zero-trust access control and cryptographic authentication."""
 
     def __init__(self, ledger: Ledger):
         self.ledger = ledger
@@ -41,11 +44,88 @@ class PolicyEngine:
         if len(kem_pk) != 1184:
             return False, f"Invalid ML-KEM-768 public key size ({len(kem_pk)})"
 
-        # Verify self-signature
         if not MLDSA65.verify(dsa_pk, payload, signature):
             return False, "Enrollment self-signature verification failed"
 
         return True, "Valid enrollment request"
+
+    def validate_manifest_request(
+        self, payload: Dict[str, Any], signature: bytes
+    ) -> Tuple[bool, str]:
+        """Validate a document manifest submitted by a sender.
+
+        The manifest is what fixes the authorised recipient list, so an unsigned
+        or wrongly signed manifest is a privilege-escalation path. This verifies
+        the sender's signature against the sender's registered public key.
+
+        Senders register through ``ENROLL`` with an ``authority`` field, so a
+        sender key and a recipient key are looked up the same way.
+        """
+        doc_id = payload.get("doc_id")
+        sender_id = payload.get("sender_id")
+        container_hash = payload.get("container_hash")
+        authorized = payload.get("authorized_recipients")
+        total_blocks = payload.get("total_blocks")
+        expiry = payload.get("expiry")
+        quota = payload.get("quota_per_recipient")
+
+        if not doc_id:
+            return False, "Manifest is missing doc_id"
+        if not sender_id:
+            return False, "Manifest is missing sender_id"
+        if not container_hash:
+            return False, "Manifest is missing container_hash"
+        if not isinstance(authorized, list) or not authorized:
+            return False, "Manifest must list at least one authorized recipient"
+        if not isinstance(total_blocks, int) or total_blocks <= 0:
+            return False, "Manifest must declare a positive total_blocks"
+        if not isinstance(expiry, int) or expiry <= 0:
+            return False, "Manifest must declare a positive expiry"
+        if not isinstance(quota, int) or quota <= 0:
+            return False, "Manifest must declare a positive quota_per_recipient"
+
+        try:
+            container_bytes = bytes.fromhex(container_hash)
+        except Exception:
+            return False, "container_hash is not valid hex"
+        if len(container_bytes) != 32:
+            return False, f"container_hash must be 32 bytes, got {len(container_bytes)}"
+
+        if expiry < int(time.time()):
+            return False, f"Manifest for '{doc_id}' has already expired"
+
+        # The sender must be a known, enrolled identity.
+        with self.ledger._get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT ml_dsa_public_key, is_revoked FROM enrolled_identities "
+                "WHERE recipient_id = ?;",
+                (sender_id,),
+            )
+            sender = cursor.fetchone()
+
+        if not sender:
+            return False, f"Sender '{sender_id}' is not enrolled on the ledger"
+        if sender["is_revoked"]:
+            return False, f"Sender '{sender_id}' enrollment is revoked"
+
+        # Every authorised recipient must be enrolled too, otherwise the manifest
+        # authorises a key nobody can attribute a decryption session to.
+        with self.ledger._get_conn() as conn:
+            cursor = conn.cursor()
+            for recipient_id in authorized:
+                cursor.execute(
+                    "SELECT 1 FROM enrolled_identities WHERE recipient_id = ?;",
+                    (recipient_id,),
+                )
+                if cursor.fetchone() is None:
+                    return False, f"Authorized recipient '{recipient_id}' is not enrolled"
+
+        if not MLDSA65.verify(sender["ml_dsa_public_key"], payload, signature):
+            return False, f"Sender ML-DSA-65 signature verification failed for '{sender_id}'"
+
+        return True, "Valid manifest"
+
 
     def validate_decrypt_request(self, payload: Dict[str, Any], signature: bytes) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
         """Validate a decryption request against policy and on-ledger state.

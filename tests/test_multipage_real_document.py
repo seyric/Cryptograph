@@ -142,8 +142,10 @@ def test_multipage_realistic_document_pipeline(tmp_path):
     ledger.commit_block([man_entry], proposer_id="VAL_01", validator_sigs={"VAL_01": b"sig"})
 
     # Deposit Key Shares across 3 custody nodes
-    for idx in [1, 2, 3]:
-        ledger.store_key_shares(doc_id, node_shares[idx])
+    # Shares must go through each node's KeyCustodyManager so they are wrapped
+    # with that node's own key before reaching the database.
+    for c in custody_nodes:
+        c.store_shares(doc_id, node_shares[c.share_index])
 
     # 4. Alice Multi-Page Decryption
     d_id, a_meta, a_blocks = alice.unwrap_container(container_bytes)

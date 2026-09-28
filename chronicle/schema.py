@@ -5,9 +5,11 @@ and migrated in one place. `SCHEMA_SQL` is applied verbatim on every open; all
 statements are `IF NOT EXISTS`, so applying it to an existing database is a
 no-op and preserves stored data.
 
-Note: `key_shares.encrypted_share` currently stores base64-decoded share bytes
-verbatim. It is not encrypted at rest - see the "Honest status" section of the
-README, item 4.
+Shares are stored **encrypted at rest**: `warden.custody.KeyCustodyManager` wraps
+each share with AES-256-GCM under a per-node key before it is written here, so
+`key_shares.encrypted_share` holds `nonce || AES-GCM(nonce, share)` bound to
+``doc_id:block_idx:variant`` as associated data. Reading a row without that
+node's key yields ciphertext, not a usable Shamir share.
 """
 
 from __future__ import annotations
@@ -35,6 +37,7 @@ SCHEMA_SQL = """
                 block_height INTEGER NOT NULL REFERENCES blocks(height),
                 validator_id TEXT NOT NULL,
                 signature BLOB NOT NULL,
+                public_key BLOB,
                 PRIMARY KEY (block_height, validator_id)
             );
 

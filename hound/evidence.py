@@ -13,6 +13,7 @@ from typing import Dict, Any, Optional
 
 from .attribution import AccusationResult
 from chronicle.ledger import Ledger
+from chronicle.block_cert import CERTIFICATE_VERSION, QUORUM_THRESHOLD
 from seal.pqc_adapter import b64_encode
 
 
@@ -87,7 +88,27 @@ class EvidenceBundleBuilder:
                 "block_timestamp": entry_record["block_timestamp"],
                 "merkle_root": merkle_info["merkle_root"],
                 "merkle_inclusion_proof": merkle_info["proof"],
-                "validator_signatures": merkle_info["validator_signatures"]
+                "validator_signatures": merkle_info["validator_signatures"],
+                # The quorum certificate: the header fields plus every validator
+                # signature over exactly those bytes, each with its public key so
+                # an offline verifier can check agreement instead of counting it.
+                "quorum_certificate": {
+                    "version": CERTIFICATE_VERSION,
+                    "height": merkle_info["block_height"],
+                    "prev_hash": merkle_info["prev_hash"],
+                    "merkle_root": merkle_info["merkle_root"],
+                    "timestamp": merkle_info["block_timestamp"],
+                    "proposer_id": merkle_info["proposer_id"],
+                    "block_hash": merkle_info["block_hash"],
+                    "signatures": {
+                        s["validator_id"]: {
+                            "signature": s["signature"],
+                            "public_key": s.get("public_key"),
+                        }
+                        for s in merkle_info["validator_signatures"]
+                    },
+                    "quorum_threshold": QUORUM_THRESHOLD,
+                },
             }
         }
 

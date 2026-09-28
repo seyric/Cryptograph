@@ -18,6 +18,8 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 from seal.merkle import MerkleTree
 from seal.pqc_adapter import canonical_json
 from .entry import compute_entry_hash
+from .block_cert import block_hash_for
+from .ledger_genesis import GENESIS_BLOCK_HASH
 
 
 def build_inclusion_proof(entry_hashes: Sequence[bytes], target: bytes) -> List[Dict[str, Any]]:
@@ -36,7 +38,13 @@ def build_inclusion_proof(entry_hashes: Sequence[bytes], target: bytes) -> List[
 
 def compute_block_hash(header: Dict[str, Any]) -> bytes:
     """Recompute a block hash from its header fields."""
-    return hashlib.sha3_256(canonical_json(header)).digest()
+    return block_hash_for(
+        header["height"],
+        header["prev_hash"],
+        header["merkle_root"],
+        header["timestamp"],
+        header["proposer_id"],
+    )
 
 
 def verify_chain(blocks: Sequence[Any], entries_by_height: Dict[int, Sequence[Any]]) -> Tuple[bool, Optional[str]]:
@@ -50,7 +58,7 @@ def verify_chain(blocks: Sequence[Any], entries_by_height: Dict[int, Sequence[An
         ``(True, None)`` when the whole chain checks out, otherwise
         ``(False, reason)`` describing the first violation found.
     """
-    expected_prev_hash = b"\x00" * 32
+    expected_prev_hash = GENESIS_BLOCK_HASH
     for block in blocks:
         height = block["height"]
         if height == 0:

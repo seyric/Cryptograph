@@ -74,13 +74,24 @@ py -3 -m venv .venv
 
 # 3. full end-to-end demo: distribute, decrypt, leak, attribute, verify offline,
 #    then run the three attack scenarios
-.venv\Scripts\python.exe bench\run_demo.py
+.venv\Scripts\python.exe gauntlet\demo.py
 
 # 4. benchmark suite + scaling study
-.venv\Scripts\python.exe bench\benchmark_suite.py
+.venv\Scripts\python.exe gauntlet\benchmarks.py
 
 # 5. distribute a real PDF to N recipients and attribute a leak
-.venv\Scripts\python.exe bench\run_custom_distribution.py --pdf my.pdf --num-recipients 10 --leaker 7
+.venv\Scripts\python.exe gauntlet\distribution.py --pdf my.pdf --num-recipients 10 --leaker 7
+```
+
+`pytest` needs no setup (`pytest.ini` puts the repository root on the path).
+The **scripts do**: they import the project packages as top-level modules, so
+run them with the repository root on `PYTHONPATH`.
+
+```powershell
+$env:PYTHONPATH = "."
+.venv\Scripts\python.exe gauntlet\demo.py
+.venv\Scripts\python.exe -m hound.verify bench_data\EVIDENCE_BUNDLE.json
+.venv\Scripts\python.exe -m ct.sender distribute --pdf doc.pdf --doc-id DOC_001 --recipients ALICE,BOB
 ```
 
 ### Services

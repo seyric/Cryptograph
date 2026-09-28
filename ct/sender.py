@@ -97,14 +97,23 @@ def main():
             sh_res = json.loads(resp.read().decode("utf-8"))
             print(f"[+] Key shares deposited in quorum custody: {sh_res['total_shares_stored']} shares stored.")
 
-        # Also store shares into sibling node databases if present on disk
+        # Also store shares into sibling node databases if present on disk.
+        # Each node wraps with its own key, so the sibling's KeyCustodyManager
+        # must be used rather than writing plaintext shares directly.
         for idx in range(2, 5):
             p_db = f"data/node_0{idx}/canarytrap_ledger.db"
             if os.path.exists(p_db) and idx in node_shares:
                 try:
                     from chronicle.ledger import Ledger
+                    from warden.custody import KeyCustodyManager
                     p_ledger = Ledger(p_db, node_id=f"NODE_0{idx}")
-                    p_ledger.store_key_shares(args.doc_id, node_shares[idx])
+                    p_custody = KeyCustodyManager(
+                        ledger=p_ledger,
+                        node_id=f"NODE_0{idx}",
+                        node_share_index=idx,
+                        wm_master_seed=b"CANARY_TRAP_DEFENCE_MASTER_SEED_2026",
+                    )
+                    p_custody.store_shares(args.doc_id, node_shares[idx])
                 except Exception:
                     pass
 

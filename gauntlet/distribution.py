@@ -233,7 +233,7 @@ def test_custom_distribution(pdf_path: str = None, num_recipients: int = 10, lea
     }
     man_res = commit_quorum_block(nodes, [man_entry], proposer_idx=0)
     for n in nodes:
-        n["ledger"].store_key_shares(doc_id, node_shares[n["share_index"]])
+        n["custody"].store_shares(doc_id, node_shares[n["share_index"]])
 
     print(f"  {C_GREEN}[+]{C_RESET} Container created: {container_path}")
     print(f"  {C_GREEN}[+]{C_RESET} Total Micro-Typographic Blocks (M): {C_BOLD}{total_blocks}{C_RESET}")
