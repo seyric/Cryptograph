@@ -9,8 +9,7 @@
 #   .venv\Scripts\python.exe -m pip install -r requirements.txt
 
 # --- post-quantum cryptography (NIST FIPS 203 / FIPS 204) ---
-kyber-py==1.2.0          # ML-KEM-768  (MIT OR Apache-2.0)
-dilithium-py==1.4.0      # ML-DSA-65   (MIT OR Apache-2.0)
+
 
 # --- symmetric crypto (AES-256-GCM) ---
 cryptography==50.0.1     # Apache-2.0 OR BSD-3-Clause

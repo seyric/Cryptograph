@@ -29,6 +29,17 @@ CANARY TRAP does this by never letting an unmarked plaintext exist:
    to a hash-chained ledger, and only then releases the Shamir shares for the
    variants selected by that session's codeword.
 4. **The copy is the evidence.** The codeword is derived from the committed
+
+### Demo Screenshots
+
+````carousel
+![Viewer Identity](file:///c:/Cryptograph/docs/demo/01_viewer_identity.png)
+<!-- slide -->
+![Viewer Card Hover](file:///c:/Cryptograph/docs/demo/02_viewer_card_hover.png)
+<!-- slide -->
+![Viewer Decrypting](file:///c:/Cryptograph/docs/demo/03_viewer_decrypting.png)
+````
+
    ledger entry, so the recovered watermark points back at one specific
    committed decryption session.
 5. **Prove it offline.** `hound/` builds a self-contained evidence bundle and
