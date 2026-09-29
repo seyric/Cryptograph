@@ -65,7 +65,12 @@ class EvidenceBundleBuilder:
             },
             "recovered_codeword": {
                 "codeword_bits": "".join(str(b) for b in accusation.recovered_codeword),
-                "match_percentage": top.match_percentage
+                "match_percentage": top.match_percentage,
+                # Disclose how the codeword was obtained. "content_stream" reads
+                # the writer's own Tw operators, so it is a weaker claim than
+                # "geometric", which measures the rendered document.
+                "extraction_strategy": accusation.extraction_strategy,
+                "mean_confidence": round(accusation.extraction_confidence, 4),
             },
             "attribution": {
                 "accused_recipient_id": top.recipient_id,

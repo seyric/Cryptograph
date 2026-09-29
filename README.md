@@ -45,7 +45,7 @@ warden/     signed requests, policy, key release       (policy, custody, consens
 chronicle/  hash-chained ledger, Merkle proofs         (entry, schema, proofs, ledger)
 dye/        watermark layers: text today               (text_layer, assembler, extractor, codeword)
 hound/      attribution, exoneration, evidence bundles  (attribution, evidence, verify)
-bridge/     recipient-facing FastAPI service            (session, service, pdf_adapter seam)
+bridge/     recipient-facing FastAPI service            (session, service)
 deck/       web UIs: deck/audit (cluster + forensics), deck/viewer (recipient)
 gauntlet/   attack harness, benchmarks, demo fixtures
 ct/         command-line tools
@@ -55,9 +55,12 @@ tests/      full pytest suite
 ```
 
 Each package exposes at most one seam over an external library -
-`seal/pqc_adapter.py` for post-quantum, `bridge/pdf_adapter.py` for PDF - so a
-provider can be replaced without touching the rest of the system. Module
-boundaries and the reasoning behind them: `docs/architecture.md`. Full
+`seal/pqc_adapter.py` for post-quantum primitives, `dye/embedder_adapter.py`
+for the text watermark channel - so a provider can be replaced without touching
+the rest of the system. PyMuPDF is the exception: it is still imported directly
+by `dye/text_layer.py`, `dye/assembler.py` and `dye/extractor.py`, and putting
+it behind an adapter is tracked as debt in `docs/architecture.md` §6.
+Module boundaries and the reasoning behind them: `docs/architecture.md`. Full
 old-name to new-name record: `docs/RENAME_MAP.md`.
 
 ---
@@ -96,6 +99,28 @@ $env:PYTHONPATH = "."
 
 ### Services
 
+The whole stack (4 validator nodes, recipient daemon, both web UIs) is started
+detached by one script — services launched this way outlive the shell that
+started them, and write their logs to `data/logs/`:
+
+```powershell
+.venv\Scripts\python.exe gauntlet\stack.py up          # nodes + daemon + UIs
+.venv\Scripts\python.exe gauntlet\stack.py bootstrap   # identities + directive
+.venv\Scripts\python.exe gauntlet\stack.py status      # what is answering, and which demo files exist
+.venv\Scripts\python.exe gauntlet\stack.py down        # stop what `up` started
+```
+
+`bootstrap` is what makes the browser demo self-contained: it writes the
+fixture, enrols `ALICE` through the recipient daemon and `SENDER_OFFICE` on the
+ledger, then distributes `DEFENCE_DIRECTIVE_2026.ct` — built with
+`ct/sender`, which resolves the recipient's ML-KEM key from the daemon's own key
+directory, so the container is guaranteed to be openable there.
+
+Then: `http://localhost:5174` for the audit console and `http://localhost:5173`
+for the recipient viewer.
+
+Launching services manually still works:
+
 ```powershell
 # validator / quorum node  (one process per node; ports 8001-8004)
 .venv\Scripts\python.exe -m uvicorn warden.service:app --host 127.0.0.1 --port 8001
@@ -104,7 +129,7 @@ $env:PYTHONPATH = "."
 .venv\Scripts\python.exe -m uvicorn bridge.service:app --host 127.0.0.1 --port 5001
 ```
 
-Then: `http://127.0.0.1:8001/console/` for the audit console and
+Then `http://127.0.0.1:8001/console/` for the audit console and
 `http://127.0.0.1:5001/` for the recipient portal (both need `npm run build` in
 `deck/audit` and `deck/viewer`).
 
@@ -144,6 +169,12 @@ provider. See `THIRD_PARTY.md` §2.1.
 ```powershell
 .venv\Scripts\python.exe -m pytest          # expect: 24 passed
 ```
+
+`tests/test_live_cluster_bft.py` binds the fixed peer ports (8001–8004) on
+purpose, so if the live stack from `gauntlet/stack.py up` is running it skips
+with an explanatory message rather than silently testing the wrong cluster:
+with the stack up the suite reports **23 passed, 1 skipped**, with the stack
+down **24 passed**.
 
 Evidence bundles are verified with zero network access:
 
@@ -189,6 +220,14 @@ They are listed so nobody is surprised under questioning.
 8. **The watermark is typographic.** Robustness to print-and-scan or to document
    re-typesetting is not implemented; error-correcting codes (Reed-Solomon) are
    the planned mitigation.
+9. **The codeword length is a shared parameter, not a signed field.**
+   `ct/sender --lines-per-block` must match what the attributor assumes
+   (`hound/attribution.py`, `warden/service.py` and the audit console all
+   default to 1). If they disagree, extraction compares the wrong number of
+   bits and the watermark gate correctly returns `NO_WATERMARK_DETECTED`
+   rather than a wrong accusation — a safe failure, but it needs the operator
+   to keep them aligned. The 24-line demo fixture at 1 line per block clears
+   the gate with p = 6.14e-06.
 
 Remediation order and scope are tracked in `docs/architecture.md` §7.
 
@@ -199,4 +238,5 @@ Remediation order and scope are tracked in `docs/architecture.md` §7.
 - CANARY TRAP's own code: see `LICENSE`.
 - Every third-party component, version, licence and purpose: `THIRD_PARTY.md`.
 - How this tree was derived from the earlier workspace, with file-level evidence:
-  `docs/rebrand-report.md`.
+  `docs/RENAME_MAP.md` (every old name, its replacement, file by file) and
+  `THIRD_PARTY.md` §1.

@@ -17,7 +17,7 @@ from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from .session import RecipientCryptoSession
+from .session import RecipientCryptoSession, ContainerKeyError
 
 app = FastAPI(title="CANARY TRAP Recipient Daemon", version="2.1")
 
@@ -36,6 +36,32 @@ session = RecipientCryptoSession(recipient_id=RECIPIENT_ID)
 
 # In-memory document storage: doc_id -> {"pdf_bytes": bytes, "session_info": dict}
 document_cache: Dict[str, Dict[str, Any]] = {}
+
+#: Directories searched for a container the recipient can actually open, after
+#: the requested path itself has been tried.
+CONTAINER_SEARCH_DIRS = ("bench_data", "data", os.path.join("data", "alice"))
+
+
+def _candidate_container_paths(requested: str) -> List[str]:
+    """Return container paths to try, in priority order, for ``requested``.
+
+    The requested path always comes first. The search directories are added
+    afterwards because a container the recipient cannot open is worse than a
+    slightly different file: it produces a confusing failure rather than a
+    working document.
+    """
+    candidates = [requested, os.path.join("bench_data", os.path.basename(requested))]
+    for directory in CONTAINER_SEARCH_DIRS:
+        candidates.append(os.path.join(directory, os.path.basename(requested)))
+
+    seen: set[str] = set()
+    ordered: List[str] = []
+    for path in candidates:
+        key = os.path.normcase(os.path.normpath(path))
+        if key not in seen:
+            seen.add(key)
+            ordered.append(path)
+    return ordered
 
 
 class OpenContainerRequest(BaseModel):
@@ -76,36 +102,53 @@ def enroll_on_ledger(validator_url: Optional[str] = None):
 @app.post("/api/open_document")
 def open_document(req: OpenContainerRequest):
     """Open and decrypt a .ct container file via Log-Before-Key protocol."""
-    # 1. Load container bytes
-    if req.container_path:
-        c_path = req.container_path
-        if not os.path.exists(c_path):
-            candidates = [
-                os.path.join("data", "alice", "policy_directive_2026.ct"),
-                os.path.join("bench_data", "DEFENCE_DIRECTIVE_2026.ct"),
-                os.path.join("data", "DEFENCE_DIRECTIVE_2026.ct"),
-                os.path.join("bench_data", os.path.basename(c_path)),
-                os.path.join("data", os.path.basename(c_path)),
-            ]
-            for cand in candidates:
+    # 1. Load container bytes. A requested path that exists is not necessarily
+    #    a container this recipient can open: a demo tree can hold containers
+    #    built for a different keypair under the same recipient id. So the
+    #    requested path is tried first, then the search directories, and the
+    #    first container that actually unwraps wins.
+    errors: list[str] = []
+    opened = None
+    source_path = None
+
+    if req.container_path or req.container_bytes_b64:
+        if req.container_bytes_b64:
+            from seal.pqc_adapter import b64_decode
+            candidates = [("<inline container_bytes_b64>", b64_decode(req.container_bytes_b64))]
+        else:
+            candidates = []
+            for cand in _candidate_container_paths(req.container_path):
                 if os.path.exists(cand):
-                    c_path = cand
-                    break
-        if not os.path.exists(c_path):
-            raise HTTPException(status_code=404, detail=f"File not found: {req.container_path}")
-        with open(c_path, "rb") as fh:
-            c_bytes = fh.read()
-    elif req.container_bytes_b64:
-        from seal.pqc_adapter import b64_decode
-        c_bytes = b64_decode(req.container_bytes_b64)
+                    with open(cand, "rb") as fh:
+                        candidates.append((cand, fh.read()))
+            if not candidates:
+                raise HTTPException(status_code=404, detail=f"File not found: {req.container_path}")
+
+        for cand_path, cand_bytes in candidates:
+            try:
+                # 2. Unwrap outer container key K_out for this recipient.
+                opened = session.unwrap_container(cand_bytes)
+            except ContainerKeyError as err:
+                errors.append(f"{cand_path}: {err}")
+                continue
+            except Exception as err:  # malformed container
+                errors.append(f"{cand_path}: unreadable container ({type(err).__name__}: {err})")
+                continue
+            source_path = cand_path
+            break
+
+        if opened is None:
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    f"No container readable by '{session.recipient_id}' was found. Tried: "
+                    + " | ".join(errors)
+                ),
+            )
     else:
         raise HTTPException(status_code=400, detail="Must provide container_path or container_bytes_b64")
 
-    # 2. Unwrap outer container key K_out
-    try:
-        doc_id, doc_meta, encrypted_blocks = session.unwrap_container(c_bytes)
-    except Exception as e:
-        raise HTTPException(status_code=403, detail=f"Failed to unwrap container: {str(e)}")
+    doc_id, doc_meta, encrypted_blocks = opened
 
     # 3. Build canonical DECRYPT_REQUEST and sign with recipient's ML-DSA-65 key
     req_payload, sig_b64, eph_dk = session.create_decrypt_request(doc_id)

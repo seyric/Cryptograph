@@ -22,6 +22,9 @@ from typing import List, Dict
 import fitz  # PyMuPDF
 
 from seal.pqc_adapter import MLDSA65, MLKEM768, b64_decode, canonical_json
+from seal.merkle import MerkleTree
+from chronicle.entry import compute_entry_hash
+from chronicle.block_cert import signing_bytes
 from seal.container import ContainerBuilder
 from bridge.session import RecipientCryptoSession
 from chronicle.ledger import Ledger
@@ -59,18 +62,19 @@ def commit_quorum_block(nodes, entries, proposer_idx=0):
     target_height = latest["height"] + 1
     now = int(time.time())
 
-    candidate_header = {
-        "height": target_height,
-        "prev_hash": latest["block_hash"],
-        "merkle_root": "0" * 64,
-        "timestamp": now,
-        "proposer_id": proposer["id"]
-    }
+    entry_hashes = [
+        compute_entry_hash(e["entry_type"], e["payload"], e["signature"])
+        for e in entries
+    ]
+    merkle_root = MerkleTree(entry_hashes).root.hex()
+
+    signed = signing_bytes(target_height, latest["block_hash"], merkle_root, now, proposer["id"])
 
     # Collect 3-of-4 real ML-DSA-65 validator signatures from nodes 0, 1, 2
     collected_sigs = {}
+    validator_keys = {n["id"]: n["vk"] for n in nodes}
     for n in nodes[:3]:
-        sig = MLDSA65.sign(n["sk"], canonical_json(candidate_header))
+        sig = MLDSA65.sign(n["sk"], signed)
         collected_sigs[n["id"]] = sig
 
     # Commit to all 4 nodes
@@ -80,7 +84,8 @@ def commit_quorum_block(nodes, entries, proposer_idx=0):
             entries=entries,
             proposer_id=proposer["id"],
             validator_sigs=collected_sigs,
-            timestamp=now
+            timestamp=now,
+            validator_keys=validator_keys
         )
         if n["id"] == proposer["id"]:
             commit_res = res

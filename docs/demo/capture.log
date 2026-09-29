@@ -1,0 +1,33 @@
+== 1. Recipient viewer: identity and daemon state ==
+  daemon reported ONLINE
+  snap 01_viewer_identity.png
+  snap 02_viewer_card_hover.png
+== 2. Log-before-key decryption ==
+  snap 03_viewer_decrypting.png
+  snap 04_viewer_steps_progress.png
+  waiting for the assembled document to render...
+  document rendered; session entry hash e0fd88f4e45ed125a89fdd5d7fb45482...
+  snap 05_viewer_document_rendered.png
+  snap 05b_rendered_directive.png (assembled, watermarked PDF)
+== 3. Capturing the leaked copy of that decrypted document ==
+  leaked copy written: bench_data/alice_decrypted.pdf (4489 bytes)
+== 4. Audit console: cluster status and block log ==
+  cluster badge: 4/4 NODES
+  snap 06_audit_cluster_status.png
+  snap 07_audit_node_detail.png
+  5 blocks listed, 4 entries in total (1, 1, 1, 1, 0)
+  snap 08_audit_block_log.png
+== 5. Forensic attribution of the leaked copy ==
+  snap 09_audit_forensics_input.png
+  attribution requested; waiting for a verdict...
+  verdict: ATTRIBUTED -> culprit ALICE
+  match 100.0% (24/24), margin 12 bits, p 6.14e-06
+  snap 10_audit_attribution_verdict.png
+== 6. Closing shot ==
+  snap 11_viewer_final.png
+
+  browser console: clean
+
+PASS - demo recorded
+  screenshots -> C:\Cryptograph\docs\demo\*.png
+  video       -> C:\Cryptograph\docs\demo\canary_trap_demo.webm

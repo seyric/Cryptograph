@@ -1,7 +1,7 @@
-# Audit Console (`console/audit`)
+# Audit Console (`deck/audit`)
 
 **CANARY TRAP** — validator cluster telemetry, ledger explorer and forensic
-sandbox. React 19 + Vite SPA, built as static files and mounted by the `gate`
+sandbox. React 19 + Vite SPA, built as static files and mounted by the warden
 service at `/console/`.
 
 ## What it does
@@ -22,11 +22,11 @@ service at `/console/`.
 ## Run it
 
 ```powershell
-cd console\audit
+cd deck\audit
 npm install          # offline mirror or npm cache required
 npm run dev          # http://localhost:5173, expects a node on 127.0.0.1:8001
 
-npm run build        # emits dist/, which gate/main.py mounts at /console/
+npm run build        # emits dist/, which warden/service.py mounts at /console/
 ```
 
 With `dist/` present, start the validator and open
@@ -38,6 +38,4 @@ With `dist/` present, start the validator and open
   `/console/` sub-path.
 - The app talks to `127.0.0.1` only; there are no CDN, font or telemetry
   requests. Everything needed is bundled.
-- Scaffolded from the Vite React template (MIT). The template's unused art was
-  moved to `../../third_party/template-assets/`; provenance for every
-  third-party file is in `../../THIRD_PARTY.md`.
+- Scaffolded from the Vite React template (MIT); no template art remains in this app.

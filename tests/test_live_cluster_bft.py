@@ -7,14 +7,45 @@ and proves that 3-of-4 quorum consensus survives and commits transactions seamle
 
 import os
 import sys
+import json
+import socket
 import time
 import subprocess
 import urllib.request
 import urllib.error
-import json
+
+import pytest
 
 from seal.pqc_adapter import MLDSA65, b64_encode, b64_decode
 from bridge.session import RecipientCryptoSession
+
+
+#: Static 4-node topology. These ports are fixed because
+#: ``warden.consensus.STATIC_PEERS`` discovers peers by them.
+NODE_CONFIGS = [
+    {"id": "NODE_01", "port": 8001, "share": 1},
+    {"id": "NODE_02", "port": 8002, "share": 2},
+    {"id": "NODE_03", "port": 8003, "share": 3},
+    {"id": "NODE_04", "port": 8004, "share": 4},
+]
+
+
+def ports_already_serving(ports) -> list:
+    """Return which of ``ports`` already have something listening.
+
+    This test binds the fixed ports from ``warden.consensus.STATIC_PEERS``
+    because peer discovery depends on that topology. If another cluster (for
+    example the live demo stack) already owns those ports, the test would
+    silently talk to *that* cluster instead of the nodes it spawned, and fail
+    with a confusing height mismatch. Detect it and skip instead.
+    """
+    busy = []
+    for port in ports:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+            probe.settimeout(0.4)
+            if probe.connect_ex(("127.0.0.1", port)) == 0:
+                busy.append(port)
+    return busy
 
 
 def wait_for_node(url: str, timeout: float = 12.0) -> bool:
@@ -34,16 +65,21 @@ def wait_for_node(url: str, timeout: float = 12.0) -> bool:
 
 
 def test_live_cluster_4node_bft_and_fault_tolerance(tmp_path):
+    busy_ports = ports_already_serving([cfg["port"] for cfg in NODE_CONFIGS])
+    if busy_ports:
+        pytest.skip(
+            "ports "
+            + ", ".join(str(p) for p in busy_ports)
+            + " are already serving another validator cluster (likely the live demo "
+            "stack). This test binds the static peer ports on purpose, so stop that "
+            "stack first."
+        )
+
     cluster_dir = str(tmp_path / "live_cluster_data")
     os.makedirs(cluster_dir, exist_ok=True)
 
     processes = {}
-    node_configs = [
-        {"id": "NODE_01", "port": 8001, "share": 1},
-        {"id": "NODE_02", "port": 8002, "share": 2},
-        {"id": "NODE_03", "port": 8003, "share": 3},
-        {"id": "NODE_04", "port": 8004, "share": 4},
-    ]
+    node_configs = NODE_CONFIGS
 
     try:
         # 1. Spawn 4 independent FastAPI Uvicorn processes
@@ -168,6 +204,10 @@ def test_live_cluster_4node_bft_and_fault_tolerance(tmp_path):
 if __name__ == "__main__":
     import tempfile
     import pathlib
+    busy = ports_already_serving([cfg["port"] for cfg in NODE_CONFIGS])
+    if busy:
+        print(f"[=] skipped: ports {busy} are serving another cluster")
+        raise SystemExit(0)
     with tempfile.TemporaryDirectory() as td:
         test_live_cluster_4node_bft_and_fault_tolerance(pathlib.Path(td))
         print("[+] Hardening Test 2 (Live 4-Node Cluster & BFT Fault Tolerance) PASSED cleanly!")

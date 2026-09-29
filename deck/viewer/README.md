@@ -1,8 +1,8 @@
-# Recipient Viewer (`console/viewer`)
+# Recipient Viewer (`deck/viewer`)
 
 **CANARY TRAP** — the recipient-side portal: identity card, "log before key"
-decryption walkthrough, provenance HUD and the watermarked document. React 19 +
-Vite SPA, built as static files and mounted by the `api` daemon at `/`.
+decryption walkthrough, provenance summary and the watermarked document. React 19 +
+Vite SPA, built as static files and mounted by the bridge daemon at `/`.
 
 ## What it does
 
@@ -28,12 +28,12 @@ Vite SPA, built as static files and mounted by the `api` daemon at `/`.
 python -m uvicorn bridge.service:app --host 127.0.0.1 --port 5001
 
 # 2a. dev server with hot reload
-cd console\viewer
+cd deck\viewer
 npm install
 npm run dev          # http://localhost:5173
 
 # 2b. or build and let the daemon serve it
-npm run build        # emits dist/, which api/main.py mounts at /
+npm run build        # emits dist/, which bridge/service.py mounts at /
 ```
 
 Then open `http://127.0.0.1:5001/`.
@@ -43,5 +43,4 @@ Then open `http://127.0.0.1:5001/`.
 - Requests go to `127.0.0.1:5001` only. No CDN, font or analytics requests.
 - The app does **not** bundle a PDF renderer; it relies on the browser's native
   PDF support, so the viewer must be a browser with a built-in PDF viewer.
-- Scaffolded from the Vite React template (MIT). Unused template art was moved to
-  `../../third_party/template-assets/`; provenance is in `../../THIRD_PARTY.md`.
+- Scaffolded from the Vite React template (MIT); no template art remains in this app.

@@ -63,10 +63,24 @@ class TextLayerAdapter:
         """Recover a codeword from a document, with per-block confidence.
 
         Two strategies are tried in order: reading the content-stream operators
-        directly, then measuring rendered word gaps geometrically. The second
-        is the one that survives re-rendering - see the README's "Honest status".
+        directly, then measuring rendered word gaps geometrically. The second is
+        the one that survives re-rendering — see the module docstring in
+        `dye.extractor`. Use :meth:`extract_with_report` when you need to know
+        which one ran.
         """
-        return WatermarkExtractor.extract_from_pdf(
+        bits, confidences, _strategy = self.extract_with_report(
+            pdf_input, total_blocks, lines_per_block
+        )
+        return bits, confidences
+
+    def extract_with_report(
+        self,
+        pdf_input: str | bytes,
+        total_blocks: int,
+        lines_per_block: int | None = None,
+    ) -> Tuple[List[int], List[float], str]:
+        """As :meth:`extract`, but also names the strategy that produced it."""
+        return WatermarkExtractor.extract_with_report(
             pdf_input,
             total_expected_blocks=total_blocks,
             lines_per_block=self.lines_per_block if lines_per_block is None else lines_per_block,

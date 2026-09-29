@@ -36,6 +36,12 @@ class AccusationResult:
     separation_margin_bits: int
     false_accusation_probability: float
     all_candidate_scores: List[CandidateScore]
+    #: Which channel produced the codeword: "content_stream" (reads the writer's
+    #: own encoding) or "geometric" (measures rendered gaps). A verdict resting
+    #: on the first is a weaker claim and must say so.
+    extraction_strategy: str
+    #: Mean per-block extraction confidence, for the same reason.
+    extraction_confidence: float
 
 
 class ForensicAccuser:
@@ -72,8 +78,10 @@ class ForensicAccuser:
         leaked_hash = hashlib.sha3_256(file_bytes).hexdigest()
 
         # 2. Extract codeword from leaked document
-        recovered_cw, confidences = TextLayerAdapter(lines_per_block=lines_per_block).extract(
-            file_bytes, total_blocks=total_blocks
+        recovered_cw, confidences, extraction_strategy = (
+            TextLayerAdapter(lines_per_block=lines_per_block).extract_with_report(
+                file_bytes, total_blocks=total_blocks
+            )
         )
 
         # 3. Query all DECRYPT_REQUEST sessions for this document from the ledger
@@ -137,5 +145,7 @@ class ForensicAccuser:
             runner_up=runner_up,
             separation_margin_bits=separation_margin,
             false_accusation_probability=false_prob,
-            all_candidate_scores=candidate_scores
+            all_candidate_scores=candidate_scores,
+            extraction_strategy=extraction_strategy,
+            extraction_confidence=(sum(confidences) / len(confidences) if confidences else 0.0),
         )

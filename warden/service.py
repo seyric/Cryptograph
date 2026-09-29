@@ -10,7 +10,7 @@ Autonomous post-quantum Byzantine validator node providing:
 
 import os
 import time
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Optional
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -92,6 +92,8 @@ def get_node_status():
         "share_index": SHARE_INDEX,
         "validator_public_key": b64_encode(VALIDATOR_VK),
         "chain_tip": latest,
+        "block_height": latest["height"],
+        "block_hash": latest["block_hash"],
         "integrity_healthy": is_valid,
         "integrity_error": reason
     }
@@ -229,6 +231,35 @@ def request_decrypt(req: SignedRequest):
     }
 
 
+@app.get("/api/identity/{recipient_id}")
+def get_recipient_identity(recipient_id: str):
+    """Return an enrolled recipient's public keys.
+
+    Senders need this: without it they had no way to obtain a recipient's
+    ML-KEM public key from the network, and the CLI invented a throwaway key
+    instead — which meant that recipient could never open the container.
+    """
+    with ledger._get_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT ml_kem_public_key, ml_dsa_public_key, is_revoked "
+            "FROM enrolled_identities WHERE recipient_id = ?;",
+            (recipient_id,),
+        )
+        row = cur.fetchone()
+
+    if not row:
+        raise HTTPException(status_code=404, detail=f"Recipient '{recipient_id}' is not enrolled")
+    if row["is_revoked"]:
+        raise HTTPException(status_code=403, detail=f"Recipient '{recipient_id}' is revoked")
+
+    return {
+        "recipient_id": recipient_id,
+        "ml_kem_public_key": b64_encode(row["ml_kem_public_key"]),
+        "ml_dsa_public_key": b64_encode(row["ml_dsa_public_key"]),
+    }
+
+
 @app.get("/api/proof/{entry_hash}")
 def get_proof(entry_hash: str):
     """Retrieve Merkle inclusion proof and validator block signatures for an entry."""
@@ -249,11 +280,34 @@ def get_entry(entry_hash: str):
 
 @app.get("/api/blocks")
 def list_blocks(limit: int = 50):
-    """List recent blocks for Audit Console."""
+    """List recent blocks with the ledger entries committed in each.
+
+    The audit console shows how many entries a block carries, so the count has
+    to come from here rather than being inferred client-side.
+    """
     with ledger._get_conn() as conn:
         cur = conn.cursor()
         cur.execute("SELECT * FROM blocks ORDER BY height DESC LIMIT ?;", (limit,))
         rows = cur.fetchall()
+
+        entries_by_height: Dict[int, List[Dict[str, Any]]] = {r["height"]: [] for r in rows}
+        heights = list(entries_by_height.keys())
+        if heights:
+            placeholders = ",".join("?" * len(heights))
+            cur.execute(
+                f"SELECT block_height, entry_type, signer_id, entry_hash FROM entries "
+                f"WHERE block_height IN ({placeholders}) ORDER BY rowid ASC;",
+                heights,
+            )
+            for e in cur.fetchall():
+                entries_by_height[e["block_height"]].append(
+                    {
+                        "entry_type": e["entry_type"],
+                        "signer_id": e["signer_id"],
+                        "entry_hash": e["entry_hash"].hex(),
+                    }
+                )
+
         return [
             {
                 "height": r["height"],
@@ -261,7 +315,9 @@ def list_blocks(limit: int = 50):
                 "merkle_root": r["merkle_root"].hex(),
                 "timestamp": r["timestamp"],
                 "proposer_id": r["proposer_id"],
-                "block_hash": r["block_hash"].hex()
+                "block_hash": r["block_hash"].hex(),
+                "entries": entries_by_height[r["height"]],
+                "entry_count": len(entries_by_height[r["height"]]),
             }
             for r in rows
         ]

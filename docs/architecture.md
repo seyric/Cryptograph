@@ -101,19 +101,24 @@ dropping the AGPL-licensed engine.
 
 Recorded, not hidden — see also the README's "Honest status".
 
-1. `warden/service.py` is ~420 lines: the FastAPI app, its Pydantic models, the
+1. `warden/service.py` is ~440 lines: the FastAPI app, its Pydantic models, the
    forensics endpoint and the static mount all live in one module. Splitting the
    forensics endpoint into a router is the obvious next cut.
-2. `gauntlet/demo.py` is ~400 lines. It is a linear orchestration script, so
+2. `gauntlet/demo.py` is ~410 lines. It is a linear orchestration script, so
    splitting it further would obscure the sequence of the demo; the fixture text
    has already been moved out to `gauntlet/fixtures.py`.
-3. `deck/audit/src/App.jsx` is ~580 lines and `deck/viewer/src/App.jsx` ~450.
-   Both would benefit from being split into per-panel components.
+3. `deck/audit/src/App.jsx` is now ~170 lines after being split into
+   `StatusList`, `BlockList` and `ForensicPanel`; `deck/viewer/src/App.jsx` is
+   ~250 lines and is still a single file, and would benefit from the same
+   treatment.
 4. Type hints are present but not uniform. A small error hierarchy
    (`CanaryTrapError`, `PolicyError`, `LedgerError`, `AttributionError`) in
    `seal/errors.py`, replacing the bare `RuntimeError`/`ValueError` raises in
-   library code, is specified in `docs/roadmap.md` and not yet implemented.
+   library code, is specified in `docs/roadmap.md` and only partially
+   realised: `bridge/session.py` now raises `ContainerKeyError` for a container
+   that will not open, so the daemon can report *why* instead of an empty
+   `InvalidTag` message.
 5. PyMuPDF is not yet behind an adapter.
 6. The inherited modules were relocated and renamed, not rewritten. See
-   `THIRD_PARTY.md` §1 and `docs/rebrand-report.md` §6.
+   `THIRD_PARTY.md` §1 and `docs/RENAME_MAP.md`.
 

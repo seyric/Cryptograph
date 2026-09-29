@@ -12,12 +12,22 @@ import os
 import json
 import time
 from typing import Dict, Any, List, Tuple
+from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from seal.pqc_adapter import MLKEM768, MLDSA65, b64_encode, b64_decode
 from seal.sharing import ShamirSecretSharing
 from dye.embedder_adapter import TextLayerAdapter
 from dye.text_layer import TextBlock
+
+
+class ContainerKeyError(RuntimeError):
+    """Raised when a container cannot be opened with the loaded key material.
+
+    The distinction matters for diagnosis: 'no capsule for me' means the wrong
+    container, while 'capsule present but it will not decrypt' means the same
+    recipient id was issued a different keypair than the one loaded here.
+    """
 
 
 class RecipientCryptoSession:
@@ -62,6 +72,15 @@ class RecipientCryptoSession:
         sig = MLDSA65.sign(self.dsa_sk, payload)
         return payload, b64_encode(sig)
 
+    def capsule_recipients(self, container_bytes: bytes) -> List[str]:
+        """Return the recipient ids a container carries a capsule for.
+
+        Lets a caller tell "this is not my container" apart from "this container
+        is broken" before spending a decapsulation on it.
+        """
+        container_dict = json.loads(container_bytes.decode("utf-8"))
+        return [cap.get("recipient_id", "") for cap in container_dict.get("recipient_capsules", [])]
+
     def unwrap_container(self, container_bytes: bytes) -> Tuple[str, Dict[str, Any], List[Dict[str, Any]]]:
         """Unwrap outer container key K_out and unpack encrypted blocks.
         
@@ -80,7 +99,10 @@ class RecipientCryptoSession:
                 break
 
         if not my_capsule:
-            raise PermissionError(f"Recipient '{self.recipient_id}' not authorized in this container")
+            raise ContainerKeyError(
+                f"Recipient '{self.recipient_id}' has no capsule in document '{doc_id}' "
+                f"(capsules present: {[c['recipient_id'] for c in capsules]})"
+            )
 
         # Decapsulate ML-KEM shared secret
         kem_ct = b64_decode(my_capsule["kem_ciphertext"])
@@ -90,7 +112,16 @@ class RecipientCryptoSession:
         nonce = b64_decode(my_capsule["nonce"])
         wrapped_kout = b64_decode(my_capsule["wrapped_k_out"])
         aes_outer = AESGCM(ss)
-        k_out = aes_outer.decrypt(nonce, wrapped_kout, associated_data=self.recipient_id.encode("utf-8"))
+        try:
+            k_out = aes_outer.decrypt(nonce, wrapped_kout, associated_data=self.recipient_id.encode("utf-8"))
+        except InvalidTag as exc:
+            # AESGCM raises InvalidTag with no message of its own, and an empty
+            # error string is useless in a demo or an incident report.
+            raise ContainerKeyError(
+                f"Outer capsule for '{self.recipient_id}' in document '{doc_id}' does not decrypt with "
+                f"the ML-KEM secret key loaded from {self.keys_dir}: the container was wrapped to a "
+                f"different keypair that shares this recipient id"
+            ) from exc
 
         # Decrypt Inner Content Package
         nonce_inner = b64_decode(container_dict["nonce"])

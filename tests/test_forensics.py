@@ -151,7 +151,7 @@ def test_forensic_accusation_and_offline_verification(forensics_env):
     # codeword is 6 independent random bits, so an innocent collides with the
     # accused 1 time in 2**6 (~1.6% of runs) and the margin is then 0. Asserting
     # > 0 here made this test flaky by construction; the identity assertion
-    # above is what actually carries the guarantee. See docs/rebrand-report.md.
+    # above is what actually carries the guarantee.
     assert result.separation_margin_bits >= 0
     assert result.false_accusation_probability < 0.10  # For M=6; for M=420 blocks it is < 1e-20
 

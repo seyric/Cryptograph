@@ -1,20 +1,57 @@
-"""Forensic Watermark Extractor for CANARY TRAP.
+"""Forensic watermark extractor.
 
-Inspects leaked PDF documents, analyzes word-spacing deltas across text blocks,
-and reconstructs the recovered session codeword y in {0, 1}^M along with confidence scores.
+Two strategies, and the difference matters for how much the result is worth:
+
+- **content_stream** — reads the `Tw` operators straight out of the PDF content
+  stream. This is the *encoding*, not a measurement: it works only while the
+  leaked file still carries those operators, and it says nothing about a file
+  that has been re-rendered, printed or photographed. It is a diagnostic
+  shortcut, not evidence, so it is labelled as such and never reported at
+  full confidence.
+- **geometric** — measures rendered word gaps from the extracted layout. This is
+  the evidence-grade path: it survives re-rendering, because it observes the
+  output rather than the writer's intent. It is weaker — it can be perturbed by
+  font substitution or re-typesetting — and its confidence reflects the measured
+  margin, not a flat maximum.
+
+Attribution must record which strategy produced a codeword, because a verdict
+resting on `content_stream` is a different claim from one resting on `geometric`.
 """
 
 import re
 from typing import List, Tuple, Union
-import fitz  # PyMuPDF
 
+import fitz  # PyMuPDF
 
 # Decision boundary for standard 11pt font
 DEFAULT_GAP_DECISION_THRESHOLD = 3.433
 
+STRATEGY_CONTENT_STREAM = "content_stream"
+STRATEGY_GEOMETRIC = "geometric"
+
+#: Confidence assigned to content-stream extraction. It reads the writer's own
+#: encoding, so it is internally exact but carries no evidence that the mark
+#: survived anything — reporting 1.0 overstates what was actually shown.
+CONTENT_STREAM_CONFIDENCE = 0.5
+
 
 class WatermarkExtractor:
     """Extracts forensic word-spacing watermarks from PDF files or byte streams."""
+
+    @classmethod
+    def extract_with_report(
+        cls,
+        pdf_input: Union[str, bytes],
+        total_expected_blocks: int,
+        lines_per_block: int = 3,
+    ) -> Tuple[List[int], List[float], str]:
+        """Extract a codeword and say how it was obtained.
+
+        Returns:
+            ``(recovered_bits, confidences, strategy)`` where ``strategy`` is
+            :data:`STRATEGY_CONTENT_STREAM` or :data:`STRATEGY_GEOMETRIC`.
+        """
+        return cls._extract(pdf_input, total_expected_blocks, lines_per_block)
 
     @classmethod
     def extract_from_pdf(
@@ -24,22 +61,31 @@ class WatermarkExtractor:
         lines_per_block: int = 3
     ) -> Tuple[List[int], List[float]]:
         """Extract recovered codeword bits from a leaked PDF.
-        
-        Args:
-            pdf_input: File path (str) or raw bytes of the leaked PDF.
-            total_expected_blocks: Expected length of codeword M.
-            lines_per_block: Number of lines grouped per block.
-            
-        Returns:
-            (recovered_codeword, confidence_list)
+
+        Back-compatible form of :meth:`extract_with_report` that discards the
+        strategy. Callers producing evidence should keep the strategy.
         """
+        bits, confidences, _strategy = cls._extract(
+            pdf_input, total_expected_blocks, lines_per_block
+        )
+        return bits, confidences
+
+    @classmethod
+    def _extract(
+        cls,
+        pdf_input: Union[str, bytes],
+        total_expected_blocks: int,
+        lines_per_block: int,
+    ) -> Tuple[List[int], List[float], str]:
         if isinstance(pdf_input, (bytes, bytearray)):
             doc = fitz.open(stream=pdf_input, filetype="pdf")
         else:
             doc = fitz.open(pdf_input)
 
         # --------------------------------------------------------------------
-        # Strategy 1: Direct Content Stream Operator Inspection (Ground Truth)
+        # Strategy 1: read the Tw operators out of the content stream.
+        # Diagnostic shortcut: it observes what the writer encoded, not what the
+        # document renders as, so it only holds while those operators survive.
         # --------------------------------------------------------------------
         stream_line_bits: List[int] = []
         try:
@@ -65,7 +111,13 @@ class WatermarkExtractor:
                 chunk = stream_line_bits[b_idx * lines_per_block : (b_idx + 1) * lines_per_block]
                 bit = 1 if sum(chunk) > len(chunk) / 2.0 else 0
                 recovered_bits.append(bit)
-            return recovered_bits, [1.0] * total_expected_blocks
+            # Read the writer's own encoding: internally exact, but unproven as
+            # evidence that the mark survived anything. Never claim full confidence.
+            return (
+                recovered_bits,
+                [CONTENT_STREAM_CONFIDENCE] * total_expected_blocks,
+                STRATEGY_CONTENT_STREAM,
+            )
 
         # --------------------------------------------------------------------
         # Strategy 2: Font-Adaptive Geometric Word Gap Measurement (Fallback)
@@ -122,4 +174,6 @@ class WatermarkExtractor:
             recovered_bits.append(bit)
             confidences.append(float(conf))
 
-        return recovered_bits, confidences
+        # Geometric measurement: the evidence-grade path, because it observes
+        # what the document renders rather than what the writer encoded.
+        return recovered_bits, confidences, STRATEGY_GEOMETRIC

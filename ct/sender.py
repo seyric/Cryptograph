@@ -5,11 +5,13 @@ Usage:
 """
 
 import os
+import sys
 import json
 import argparse
+import urllib.error
 import urllib.request
 
-from seal.pqc_adapter import MLDSA65, MLKEM768, b64_encode
+from seal.pqc_adapter import MLDSA65, b64_encode, b64_decode
 from seal.container import ContainerBuilder
 
 
@@ -23,6 +25,18 @@ def main():
     dist_parser.add_argument("--recipients", required=True, help="Comma-separated recipient IDs")
     dist_parser.add_argument("--node-url", default="http://127.0.0.1:8001", help="Validator node URL")
     dist_parser.add_argument("--output", default=None, help="Output .ct container path")
+    dist_parser.add_argument(
+        "--lines-per-block",
+        type=int,
+        default=1,
+        help=(
+            "Lines grouped into one variation block (default 1). This fixes the "
+            "codeword length, so the attributor must be told the same value. The "
+            "default matches hound/attribution.py, warden/service.py and the audit "
+            "console, which all assume one line per block: a 24-line directive then "
+            "yields 24 blocks and a statistically decisive attribution."
+        ),
+    )
 
     args = parser.parse_args()
 
@@ -44,18 +58,43 @@ def main():
         recipients_list = [r.strip() for r in args.recipients.split(",") if r.strip()]
         recipients_map = {}
 
-        # Fetch enrolled public keys from validator node
-        print(f"[*] Fetching enrolled public keys for recipients: {recipients_list}")
+        # Resolve each recipient's enrolled ML-KEM public key. Order: local cache
+        # (the recipient's own machine), then the validator ledger. If neither
+        # has one we must stop: a throwaway key would encrypt a copy nobody can
+        # ever open, and silently continue as if distribution had succeeded.
+        missing: list[str] = []
+        print(f"[*] Resolving enrolled public keys for recipients: {recipients_list}")
         for r_id in recipients_list:
-            # Check local key cache or query node
             client_pk_file = f"data/client_keys/{r_id}_kem_pk.bin"
             if os.path.exists(client_pk_file):
                 with open(client_pk_file, "rb") as f:
                     recipients_map[r_id] = f.read()
-            else:
-                print(f"[!] Warning: {client_pk_file} not found locally, generating temporary key for demo.")
-                pk, _ = MLKEM768.keygen()
-                recipients_map[r_id] = pk
+                continue
+
+            try:
+                with urllib.request.urlopen(f"{args.node_url}/api/identity/{r_id}", timeout=5) as resp:
+                    identity = json.loads(resp.read().decode("utf-8"))
+                recipients_map[r_id] = b64_decode(identity["ml_kem_public_key"])
+                print(f"    {r_id}: fetched enrolled ML-KEM key from {args.node_url}")
+            except urllib.error.HTTPError as err:
+                reason = err.read().decode("utf-8", "replace")
+                missing.append(f"{r_id} (ledger: {reason})")
+            except Exception as err:
+                missing.append(f"{r_id} ({err})")
+
+        if missing:
+            print("[!] Cannot resolve an enrolled ML-KEM public key for:", file=sys.stderr)
+            for item in missing:
+                print(f"    - {item}", file=sys.stderr)
+            print(
+                "[!] Refusing to invent a key: the recipient would be unable to "
+                "decrypt this container, and the distribution would look "
+                "successful while being broken.\n"
+                "    Recipients must enroll first (POST /api/enroll), or the "
+                "recipient's own data/client_keys/<id>_kem_pk.bin must be present.",
+                file=sys.stderr,
+            )
+            sys.exit(2)
 
         print(f"[*] Segmenting document and encrypting variants for '{args.doc_id}'...")
         container_bytes, signed_manifest, node_shares = ContainerBuilder.build_container(
@@ -63,7 +102,7 @@ def main():
             doc_id=args.doc_id,
             recipients_map=recipients_map,
             sender_sk=sender_sk,
-            lines_per_block=3
+            lines_per_block=args.lines_per_block
         )
 
         out_path = args.output or f"{args.doc_id}.ct"

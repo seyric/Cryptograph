@@ -1,7 +1,8 @@
 # Naming scheme
 
 The single, consistent naming scheme for CANARY TRAP, and the exact token map
-that was applied. Referenced by `docs/rebrand-report.md`.
+that was applied. The old-to-new record itself lives in `docs/RENAME_MAP.md`;
+this file is the policy that future names must follow.
 
 ---
 
@@ -52,9 +53,13 @@ Adapter modules - one seam per external library:
 | Adapter | Wraps | Replacing it touches |
 |---|---|---|
 | `seal/pqc_adapter.py` | `kyber-py` / `dilithium-py` | nothing else |
-| `bridge/pdf_adapter.py` | PyMuPDF (`fitz`) | `dye/`, `seal/container.py`, `bridge/session.py` |
 | `dye/embedder_adapter.py` | the text watermark channel | `hound/`, `bridge/` |
 | `chronicle/schema.py` | SQLite DDL | `chronicle/ledger.py` |
+
+PyMuPDF has **no adapter yet** — it is imported directly by
+`dye/text_layer.py`, `dye/assembler.py` and `dye/extractor.py`. Adding
+`dye/pdf_adapter.py` behind `dye/embedder_adapter.py` is tracked as structural
+debt in `docs/architecture.md` §6.
 
 Packages are imported as **top-level modules** (`from seal.pqc_adapter import ...`), which
 matches the flat layout above. `pytest.ini` puts the repository root on
