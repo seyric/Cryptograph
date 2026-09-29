@@ -33,11 +33,11 @@ CANARY TRAP does this by never letting an unmarked plaintext exist:
 ### Demo Screenshots
 
 ````carousel
-![Viewer Identity](file:///c:/Cryptograph/docs/demo/01_viewer_identity.png)
+![Viewer Identity](docs/demo/01_viewer_identity.png)
 <!-- slide -->
-![Viewer Card Hover](file:///c:/Cryptograph/docs/demo/02_viewer_card_hover.png)
+![Viewer Card Hover](docs/demo/02_viewer_card_hover.png)
 <!-- slide -->
-![Viewer Decrypting](file:///c:/Cryptograph/docs/demo/03_viewer_decrypting.png)
+![Viewer Decrypting](docs/demo/03_viewer_decrypting.png)
 ````
 
    ledger entry, so the recovered watermark points back at one specific
